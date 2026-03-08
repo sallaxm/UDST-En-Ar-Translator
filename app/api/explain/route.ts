@@ -15,27 +15,19 @@ export async function POST(req: Request) {
         {
           role: "system",
           content:
-            "You help university students understand lectures. Always respond in this format: Simple English, Arabic Explanation, Arabic Translation, Keywords.",
+            "Return JSON with keys: simple, arabicExplanation, arabicTranslation, keywords (array of {en, ar}).",
         },
         {
           role: "user",
-          content: `Analyze this lecture text and return:
-
-1. Simple English explanation
-2. Arabic explanation
-3. Direct Arabic translation
-4. 5 important keywords with Arabic translation
-
-Text:
-${text}`,
+          content: `Explain this lecture text:\n\n${text}`,
         },
       ],
+      response_format: { type: "json_object" },
     }),
   });
 
   const data = await response.json();
+  const content = JSON.parse(data.choices[0].message.content);
 
-  return NextResponse.json({
-    result: data.choices[0].message.content,
-  });
+  return NextResponse.json(content);
 }
