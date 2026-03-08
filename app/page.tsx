@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 export default function Dashboard() {
   const [input, setInput] = useState("");
@@ -8,6 +8,7 @@ export default function Dashboard() {
   const [selectedFileType, setSelectedFileType] = useState<
     "image" | "pdf" | "powerpoint" | ""
   >("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -17,6 +18,7 @@ export default function Dashboard() {
     if (!file) return;
 
     setSelectedFileName(file.name);
+    setIsProcessing(true);
 
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
@@ -38,15 +40,31 @@ export default function Dashboard() {
   const clearSelectedFile = () => {
     setSelectedFileName("");
     setSelectedFileType("");
+    setIsProcessing(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
+
+  useEffect(() => {
+    if (!input.trim()) {
+      if (!selectedFileName) setIsProcessing(false);
+      return;
+    }
+
+    setIsProcessing(true);
+
+    const timer = setTimeout(() => {
+      setIsProcessing(false);
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [input, selectedFileName]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(0,94,184,0.18),_transparent_30%),linear-gradient(180deg,_#060914_0%,_#0b1020_45%,_#0f172a_100%)] text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col md:flex-row">
         <aside className="sticky top-0 z-20 border-b border-white/10 bg-[#0b1020]/80 backdrop-blur-2xl md:h-screen md:w-72 md:border-b-0 md:border-r">
-          <div className="flex items-center justify-between px-4 py-4 md:block md:p-6">
+          <div className="px-4 py-4 md:p-6">
             <div className="space-y-1">
               <div className="inline-flex items-center rounded-full border border-[#005EB8]/40 bg-[#005EB8]/15 px-3 py-1 text-[11px] font-medium text-[#9fd0ff]">
                 UDST Notes
@@ -64,12 +82,6 @@ export default function Dashboard() {
             <button className="shrink-0 rounded-2xl border border-[#005EB8]/30 bg-[#005EB8]/20 px-4 py-2.5 text-left text-white shadow-[0_8px_30px_rgba(0,94,184,0.15)]">
               Translator
             </button>
-            <button className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/65 transition hover:bg-white/10 hover:text-white">
-              History
-            </button>
-            <button className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/65 transition hover:bg-white/10 hover:text-white">
-              Settings
-            </button>
           </nav>
         </aside>
 
@@ -79,14 +91,14 @@ export default function Dashboard() {
               <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <div className="mb-3 inline-flex items-center rounded-full border border-[#005EB8]/35 bg-[#005EB8]/15 px-3 py-1 text-[11px] font-medium text-[#9fd0ff] md:text-xs">
-                    Mobile-first translator dashboard
+                    Auto-processing mobile-first dashboard
                   </div>
                   <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
                     Lecture Translator
                   </h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55 md:text-base">
                     Optimized for phone photos, screenshots, PDFs, and
-                    PowerPoints.
+                    PowerPoints. Upload or paste and it starts automatically.
                   </p>
                 </div>
               </div>
@@ -101,9 +113,13 @@ export default function Dashboard() {
                       Paste notes, upload a document, or take a photo
                     </p>
                   </div>
+
+                  <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60">
+                    {isProcessing ? "Processing..." : "Ready"}
+                  </div>
                 </div>
 
-                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={openCameraPicker}
@@ -118,13 +134,6 @@ export default function Dashboard() {
                     className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition hover:bg-white/10"
                   >
                     Upload File
-                  </button>
-
-                  <button
-                    type="button"
-                    className="rounded-2xl bg-gradient-to-r from-[#005EB8] to-[#2F80ED] px-4 py-3 text-sm font-medium text-white shadow-lg shadow-[#005EB8]/20 transition hover:opacity-95"
-                  >
-                    Explain
                   </button>
                 </div>
 
@@ -152,10 +161,11 @@ export default function Dashboard() {
                         {selectedFileName}
                       </p>
                       <p className="mt-1 text-xs text-white/45 capitalize">
-                        {selectedFileType === "image" && "Image selected"}
-                        {selectedFileType === "pdf" && "PDF selected"}
+                        {selectedFileType === "image" && "Image uploaded"}
+                        {selectedFileType === "pdf" && "PDF uploaded"}
                         {selectedFileType === "powerpoint" &&
-                          "PowerPoint selected"}
+                          "PowerPoint uploaded"}
+                        {isProcessing && " • processing automatically"}
                       </p>
                     </div>
 
@@ -172,7 +182,7 @@ export default function Dashboard() {
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Paste lecture text here if you don't want to upload a file..."
+                  placeholder="Paste lecture text here and it will process automatically..."
                   className="h-40 w-full resize-none rounded-3xl border border-white/10 bg-[#0b1020]/80 px-4 py-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-[#2F80ED]/60 focus:bg-[#0b1020] md:h-48"
                 />
 
@@ -195,7 +205,7 @@ export default function Dashboard() {
 
             <section className="grid gap-4 md:grid-cols-2 md:gap-6">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
-                <div className="mb-4 flex items-center gap-3">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Simple English
@@ -204,14 +214,17 @@ export default function Dashboard() {
                       Clear, easier wording
                     </p>
                   </div>
+                  {isProcessing && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                  )}
                 </div>
                 <p className="text-sm leading-7 text-white/75">
-                  Your simplified explanation will appear here.
+                  Your simplified explanation will appear here automatically.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
-                <div className="mb-4 flex items-center gap-3">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Arabic Explanation
@@ -220,14 +233,20 @@ export default function Dashboard() {
                       شرح مبسط بالعربية
                     </p>
                   </div>
+                  {isProcessing && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                  )}
                 </div>
-                <p dir="ltr" className="text-left text-sm leading-7 text-white/75">
-                  سيظهر الشرح هنا بطريقة واضحة ومبسطة.
+                <p
+                  dir="ltr"
+                  className="text-left text-sm leading-7 text-white/75"
+                >
+                  سيظهر الشرح هنا تلقائيًا بعد رفع الصورة أو الملف أو لصق النص.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
-                <div className="mb-4 flex items-center gap-3">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Arabic Translation
@@ -236,14 +255,20 @@ export default function Dashboard() {
                       ترجمة مباشرة للنص
                     </p>
                   </div>
+                  {isProcessing && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                  )}
                 </div>
-                <p dir="ltr" className="text-left text-sm leading-7 text-white/75">
-                  ستظهر الترجمة هنا.
+                <p
+                  dir="ltr"
+                  className="text-left text-sm leading-7 text-white/75"
+                >
+                  ستظهر الترجمة هنا تلقائيًا.
                 </p>
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
-                <div className="mb-4 flex items-center gap-3">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Keywords
@@ -252,6 +277,9 @@ export default function Dashboard() {
                       Main terms with Arabic meaning
                     </p>
                   </div>
+                  {isProcessing && (
+                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
