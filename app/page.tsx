@@ -17,9 +17,6 @@ export default function Dashboard() {
               <h1 className="mt-2 text-lg font-semibold tracking-tight md:text-xl">Translator</h1>
               <p className="text-xs text-white/45 md:text-sm">English to Arabic lecture support</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/55 md:mt-8 md:w-fit">
-              v0.1
-            </div>
           </div>
 
           <nav className="flex gap-2 overflow-x-auto px-4 pb-4 md:flex-col md:px-6 md:pb-0 text-sm [&::-webkit-scrollbar]:hidden">
@@ -48,7 +45,6 @@ export default function Dashboard() {
                     Paste lecture text or upload an image to get simple English, Arabic explanation, Arabic translation, and translated keywords.
                   </p>
                 </div>
-                <div className="hidden h-14 w-14 rounded-3xl border border-white/10 bg-gradient-to-br from-[#005EB8]/35 to-white/5 md:block" />
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-black/20 p-3 sm:p-4">
@@ -80,7 +76,6 @@ export default function Dashboard() {
             <section className="grid gap-4 md:grid-cols-2 md:gap-6">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl border border-white/10 bg-gradient-to-br from-[#005EB8]/30 to-white/5" />
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">Simple English</h3>
                     <p className="text-xs text-white/45 md:text-sm">Clear, easier wording</p>
@@ -93,7 +88,6 @@ export default function Dashboard() {
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl border border-white/10 bg-gradient-to-br from-[#005EB8]/30 to-white/5" />
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">Arabic Explanation</h3>
                     <p className="text-xs text-white/45 md:text-sm">شرح مبسط بالعربية</p>
@@ -106,7 +100,6 @@ export default function Dashboard() {
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl border border-white/10 bg-gradient-to-br from-[#005EB8]/30 to-white/5" />
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">Arabic Translation</h3>
                     <p className="text-xs text-white/45 md:text-sm">ترجمة مباشرة للنص</p>
@@ -119,7 +112,6 @@ export default function Dashboard() {
 
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl border border-white/10 bg-gradient-to-br from-[#005EB8]/30 to-white/5" />
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">Keywords</h3>
                     <p className="text-xs text-white/45 md:text-sm">Main terms with Arabic meaning</p>
