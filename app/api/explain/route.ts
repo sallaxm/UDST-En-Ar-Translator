@@ -168,7 +168,16 @@ async function parseRequestInput(req: Request): Promise<{
   const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
 
   if (contentType.includes("application/json")) {
-    const body = (await req.json()) as { text?: unknown };
+    let body: { text?: unknown };
+
+    try {
+      body = (await req.json()) as { text?: unknown };
+    } catch {
+      throw new ExplainApiError(
+        "Invalid JSON body. Send JSON like { \"text\": \"...\" }.",
+        400
+      );
+    }
 
     return {
       text: typeof body.text === "string" ? body.text : null,
@@ -249,14 +258,17 @@ export async function POST(req: Request) {
     if (
       typeof error === "object" &&
       error !== null &&
-      "status" in error &&
-      typeof error.status === "number" &&
       "message" in error &&
       typeof error.message === "string"
     ) {
+      const status =
+        "status" in error && typeof error.status === "number"
+          ? error.status
+          : 502;
+
       return NextResponse.json(
         { error: `OpenAI request failed: ${error.message}` },
-        { status: error.status }
+        { status }
       );
     }
 
