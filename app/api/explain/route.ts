@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured.");
+  }
+
+  return new OpenAI({ apiKey });
+}
 
 async function fileToBuffer(file: File): Promise<Buffer> {
   const arrayBuffer = await file.arrayBuffer();
@@ -23,7 +29,20 @@ async function extractTextFromPdf(file: File): Promise<string> {
   }
 }
 
+function parseModelJson(content: string | null): Record<string, unknown> {
+  if (!content) {
+    throw new Error("Model returned an empty response.");
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw new Error("Model returned invalid JSON.");
+  }
+}
+
 async function analyzeText(text: string) {
+  const client = getClient();
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -58,10 +77,11 @@ Rules:
     ],
   });
 
-  return JSON.parse(response.choices[0].message.content || "{}");
+  return parseModelJson(response.choices[0].message.content);
 }
 
 async function analyzeImage(file: File) {
+  const client = getClient();
   const buffer = await fileToBuffer(file);
   const mimeType = file.type || "image/jpeg";
   const base64 = buffer.toString("base64");
@@ -113,7 +133,7 @@ Rules:
     ],
   });
 
-  return JSON.parse(response.choices[0].message.content || "{}");
+  return parseModelJson(response.choices[0].message.content);
 }
 
 export async function POST(req: Request) {
@@ -163,6 +183,17 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error(error);
+
+    if (error instanceof Error && error.message === "OPENAI_API_KEY is not configured.") {
+      return NextResponse.json(
+        {
+          error:
+            "Missing OPENAI_API_KEY server environment variable. Add it to your .env.local file and restart the dev server.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Something went wrong while processing the content." },
       { status: 500 }
