@@ -34,3 +34,20 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## API rate limiting
+
+The `/api/explain` endpoint now includes an in-memory per-IP rate limiter to reduce abuse and protect your AI quota.
+
+You can configure it with environment variables:
+
+- `API_RATE_LIMIT_MAX_REQUESTS` (default: `10`)
+- `API_RATE_LIMIT_WINDOW_MS` (default: `60000`)
+
+Example `.env.local` values:
+
+```bash
+API_RATE_LIMIT_MAX_REQUESTS=10
+API_RATE_LIMIT_WINDOW_MS=60000
+```
+
