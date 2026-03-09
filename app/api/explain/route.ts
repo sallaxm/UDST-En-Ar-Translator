@@ -161,19 +161,61 @@ Rules:
   return parseModelJson(response.choices[0].message.content);
 }
 
-export async function POST(req: Request) {
-  try {
-    const formData = await req.formData();
+async function parseRequestInput(req: Request): Promise<{
+  text: string | null;
+  file: File | null;
+}> {
+  const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
 
+  if (contentType.includes("application/json")) {
+    let body: { text?: unknown };
+
+    try {
+      body = (await req.json()) as { text?: unknown };
+    } catch {
+      throw new ExplainApiError(
+        "Invalid JSON body. Send JSON like { \"text\": \"...\" }.",
+        400
+      );
+    }
+
+    return {
+      text: typeof body.text === "string" ? body.text : null,
+      file: null,
+    };
+  }
+
+  if (
+    contentType.includes("multipart/form-data") ||
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType === ""
+  ) {
+    const formData = await req.formData();
     const text = formData.get("text");
     const file = formData.get("file");
 
-    if (typeof text === "string" && text.trim()) {
+    return {
+      text: typeof text === "string" ? text : null,
+      file: file instanceof File ? file : null,
+    };
+  }
+
+  throw new ExplainApiError(
+    "Unsupported content type. Send JSON with { text } or multipart/form-data with text/file.",
+    415
+  );
+}
+
+export async function POST(req: Request) {
+  try {
+    const { text, file } = await parseRequestInput(req);
+
+    if (text && text.trim()) {
       const result = await analyzeText(text.trim());
       return NextResponse.json(result);
     }
 
-    if (file instanceof File) {
+    if (file) {
       if (file.type.startsWith("image/")) {
         const result = await analyzeImage(file);
         return NextResponse.json(result);
@@ -216,14 +258,17 @@ export async function POST(req: Request) {
     if (
       typeof error === "object" &&
       error !== null &&
-      "status" in error &&
-      typeof error.status === "number" &&
       "message" in error &&
       typeof error.message === "string"
     ) {
+      const status =
+        "status" in error && typeof error.status === "number"
+          ? error.status
+          : 502;
+
       return NextResponse.json(
         { error: `OpenAI request failed: ${error.message}` },
-        { status: error.status }
+        { status }
       );
     }
 
