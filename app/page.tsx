@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [selectedFileType, setSelectedFileType] = useState<
-    "image" | "pdf" | "powerpoint" | ""
+    "image" | "pdf" | "word" | "powerpoint" | ""
   >("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -141,10 +141,19 @@ export default function Dashboard() {
     setError("");
     setResult(emptyResult);
 
+    const lowerName = file.name.toLowerCase();
+
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
-    } else if (file.type === "application/pdf") {
+    } else if (file.type === "application/pdf" || lowerName.endsWith(".pdf")) {
       setSelectedFileType("pdf");
+    } else if (
+      file.type.includes("word") ||
+      file.type.includes("officedocument.wordprocessingml") ||
+      lowerName.endsWith(".doc") ||
+      lowerName.endsWith(".docx")
+    ) {
+      setSelectedFileType("word");
     } else {
       setSelectedFileType("powerpoint");
     }
@@ -276,7 +285,7 @@ export default function Dashboard() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.ppt,.pptx,image/*"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,image/*"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -299,6 +308,7 @@ export default function Dashboard() {
                       <p className="mt-1 text-xs text-white/40 capitalize">
                         {selectedFileType === "image" && "Image"}
                         {selectedFileType === "pdf" && "PDF"}
+                        {selectedFileType === "word" && "Word"}
                         {selectedFileType === "powerpoint" && "PowerPoint"}
                       </p>
                     </div>
@@ -326,16 +336,20 @@ export default function Dashboard() {
                 />
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["Phone photos", "Screenshots", "PDFs", "PowerPoints"].map(
-                    (item) => (
+                  {[
+                    "Phone photos",
+                    "Screenshots",
+                    "PDFs",
+                    "Word Docs",
+                    "PowerPoints",
+                  ].map((item) => (
                       <span
                         key={item}
                         className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/55"
                       >
                         {item}
                       </span>
-                    )
-                  )}
+                  ))}
                 </div>
 
                 {error && (

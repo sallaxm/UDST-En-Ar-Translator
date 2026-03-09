@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { PDFParse } from "pdf-parse";
+import { inflateRawSync } from "node:zlib";
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -226,6 +228,97 @@ Rules:
   ]);
 }
 
+function normalizeExtractedText(text: string) {
+  return text.replace(/\u0000/g, "").replace(/\s+/g, " ").trim();
+}
+
+async function extractPdfText(file: File) {
+  const bytes = await file.arrayBuffer();
+  const parser = new PDFParse({ data: Buffer.from(bytes) });
+  const data = await parser.getText();
+  await parser.destroy();
+  return normalizeExtractedText(data.text || "");
+}
+
+async function extractZipEntryText(file: File, entryPattern: RegExp) {
+  const bytes = await file.arrayBuffer();
+  const archive = Buffer.from(bytes);
+
+  const textDecoder = new TextDecoder();
+  const signature = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+  const contents: string[] = [];
+
+  let offset = 0;
+  while (offset < archive.length) {
+    const entryOffset = archive.indexOf(signature, offset);
+    if (entryOffset < 0) break;
+
+    const compressionMethod = archive.readUInt16LE(entryOffset + 8);
+    const compressedSize = archive.readUInt32LE(entryOffset + 18);
+    const fileNameLength = archive.readUInt16LE(entryOffset + 26);
+    const extraLength = archive.readUInt16LE(entryOffset + 28);
+
+    const fileNameStart = entryOffset + 30;
+    const fileNameEnd = fileNameStart + fileNameLength;
+    const fileName = archive.toString("utf8", fileNameStart, fileNameEnd);
+
+    const dataStart = fileNameEnd + extraLength;
+    const dataEnd = dataStart + compressedSize;
+
+    if (entryPattern.test(fileName) && dataEnd <= archive.length) {
+      const entryData = archive.subarray(dataStart, dataEnd);
+      let xml = "";
+
+      if (compressionMethod === 0) {
+        xml = textDecoder.decode(entryData);
+      } else if (compressionMethod === 8) {
+        xml = textDecoder.decode(inflateRawSync(entryData));
+      }
+
+      if (xml) {
+        const plain = xml.replace(/<[^>]+>/g, " ").replace(/&[^;]+;/g, " ");
+        contents.push(plain);
+      }
+    }
+
+    offset = dataEnd;
+  }
+
+  return normalizeExtractedText(contents.join(" "));
+}
+
+async function extractWordText(file: File) {
+  return extractZipEntryText(file, /^word\/.+\.xml$/i);
+}
+
+async function extractPowerPointText(file: File) {
+  return extractZipEntryText(file, /^ppt\/slides\/slide\d+\.xml$/i);
+}
+
+function isPdf(file: File) {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
+function isWord(file: File) {
+  const name = file.name.toLowerCase();
+  return (
+    file.type.includes("word") ||
+    file.type.includes("officedocument.wordprocessingml") ||
+    name.endsWith(".doc") ||
+    name.endsWith(".docx")
+  );
+}
+
+function isPowerPoint(file: File) {
+  const name = file.name.toLowerCase();
+  return (
+    file.type.includes("presentation") ||
+    file.type.includes("powerpoint") ||
+    name.endsWith(".ppt") ||
+    name.endsWith(".pptx")
+  );
+}
+
 export async function POST(req: Request) {
   try {
     enforceRateLimit(req);
@@ -246,7 +339,34 @@ export async function POST(req: Request) {
         return NextResponse.json(result);
       }
 
-      throw new ApiError("Only image uploads are supported for now.", 400);
+      if (isPdf(file)) {
+        const extractedText = await extractPdfText(file);
+        if (!extractedText) {
+          throw new ApiError("No readable text was found in this PDF.", 400);
+        }
+        const result = await analyzeText(extractedText);
+        return NextResponse.json(result);
+      }
+
+      if (isWord(file)) {
+        const extractedText = await extractWordText(file);
+        if (!extractedText) {
+          throw new ApiError("No readable text was found in this Word document.", 400);
+        }
+        const result = await analyzeText(extractedText);
+        return NextResponse.json(result);
+      }
+
+      if (isPowerPoint(file)) {
+        const extractedText = await extractPowerPointText(file);
+        if (!extractedText) {
+          throw new ApiError("No readable text was found in this PowerPoint file.", 400);
+        }
+        const result = await analyzeText(extractedText);
+        return NextResponse.json(result);
+      }
+
+      throw new ApiError("Supported uploads: images, PDF, Word, and PowerPoint files.", 400);
     }
 
     throw new ApiError("No text or file provided.", 400);
