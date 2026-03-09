@@ -82,6 +82,12 @@ export default function Dashboard() {
             <button className="shrink-0 rounded-2xl border border-[#005EB8]/30 bg-[#005EB8]/20 px-4 py-2.5 text-left text-white shadow-[0_8px_30px_rgba(0,94,184,0.15)]">
               Translator
             </button>
+            <a
+  href="/about"
+  className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/65 transition hover:bg-white/10 hover:text-white"
+>
+  About
+</a>
           </nav>
         </aside>
 
