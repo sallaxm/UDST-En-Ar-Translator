@@ -2,23 +2,114 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
+type Keyword = {
+  en: string;
+  ar: string;
+};
+
+type ResultData = {
+  simple: string;
+  arabicExplanation: string;
+  arabicTranslation: string;
+  keywords: Keyword[];
+};
+
+const emptyResult: ResultData = {
+  simple: "",
+  arabicExplanation: "",
+  arabicTranslation: "",
+  keywords: [],
+};
+
 export default function Dashboard() {
   const [input, setInput] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [selectedFileType, setSelectedFileType] = useState<
     "image" | "pdf" | "powerpoint" | ""
   >("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<ResultData>(emptyResult);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const textTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const processText = async (textValue: string) => {
+    if (!textValue.trim()) return;
+
+    setIsProcessing(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("text", textValue);
+
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process text.");
+      }
+
+      setResult({
+        simple: data.simple || "",
+        arabicExplanation: data.arabicExplanation || "",
+        arabicTranslation: data.arabicTranslation || "",
+        keywords: Array.isArray(data.keywords) ? data.keywords : [],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process text.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const processFile = async (file: File) => {
+    setIsProcessing(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to process file.");
+      }
+
+      setResult({
+        simple: data.simple || "",
+        arabicExplanation: data.arabicExplanation || "",
+        arabicTranslation: data.arabicTranslation || "",
+        keywords: Array.isArray(data.keywords) ? data.keywords : [],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to process file.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setSelectedFile(file);
     setSelectedFileName(file.name);
-    setIsProcessing(true);
+    setInput("");
+    setError("");
 
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
@@ -27,6 +118,8 @@ export default function Dashboard() {
     } else {
       setSelectedFileType("powerpoint");
     }
+
+    void processFile(file);
   };
 
   const openFilePicker = () => {
@@ -38,27 +131,39 @@ export default function Dashboard() {
   };
 
   const clearSelectedFile = () => {
+    setSelectedFile(null);
     setSelectedFileName("");
     setSelectedFileType("");
-    setIsProcessing(false);
+    setError("");
+    setResult(emptyResult);
+
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   useEffect(() => {
+    if (selectedFile) return;
+
     if (!input.trim()) {
-      if (!selectedFileName) setIsProcessing(false);
+      setResult(emptyResult);
+      setError("");
       return;
     }
 
-    setIsProcessing(true);
+    if (textTimeoutRef.current) {
+      clearTimeout(textTimeoutRef.current);
+    }
 
-    const timer = setTimeout(() => {
-      setIsProcessing(false);
+    textTimeoutRef.current = setTimeout(() => {
+      void processText(input);
     }, 900);
 
-    return () => clearTimeout(timer);
-  }, [input, selectedFileName]);
+    return () => {
+      if (textTimeoutRef.current) {
+        clearTimeout(textTimeoutRef.current);
+      }
+    };
+  }, [input, selectedFile]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(0,94,184,0.18),_transparent_30%),linear-gradient(180deg,_#060914_0%,_#0b1020_45%,_#0f172a_100%)] text-white">
@@ -83,11 +188,11 @@ export default function Dashboard() {
               Translator
             </button>
             <a
-  href="/about"
-  className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/65 transition hover:bg-white/10 hover:text-white"
->
-  About
-</a>
+              href="/about"
+              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/65 transition hover:bg-white/10 hover:text-white"
+            >
+              About
+            </a>
           </nav>
         </aside>
 
@@ -187,7 +292,12 @@ export default function Dashboard() {
 
                 <textarea
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedFile(null);
+                    setSelectedFileName("");
+                    setSelectedFileType("");
+                    setInput(e.target.value);
+                  }}
                   placeholder="Paste lecture text here and it will process automatically..."
                   className="h-40 w-full resize-none rounded-3xl border border-white/10 bg-[#0b1020]/80 px-4 py-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-[#2F80ED]/60 focus:bg-[#0b1020] md:h-48"
                 />
@@ -206,6 +316,12 @@ export default function Dashboard() {
                     PowerPoints
                   </span>
                 </div>
+
+                {error && (
+                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                    {error}
+                  </div>
+                )}
               </div>
             </section>
 
@@ -221,11 +337,12 @@ export default function Dashboard() {
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
                   )}
                 </div>
-                <p className="text-sm leading-7 text-white/75">
-                  Your simplified explanation will appear here automatically.
+                <p className="whitespace-pre-wrap text-sm leading-7 text-white/75">
+                  {result.simple ||
+                    "Your simplified explanation will appear here automatically."}
                 </p>
               </div>
 
@@ -240,14 +357,15 @@ export default function Dashboard() {
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
                   )}
                 </div>
                 <p
                   dir="ltr"
-                  className="text-left text-sm leading-7 text-white/75"
+                  className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
                 >
-                  سيظهر الشرح هنا تلقائيًا بعد رفع الصورة أو الملف أو لصق النص.
+                  {result.arabicExplanation ||
+                    "سيظهر الشرح هنا تلقائيًا بعد رفع الصورة أو الملف أو لصق النص."}
                 </p>
               </div>
 
@@ -262,14 +380,14 @@ export default function Dashboard() {
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
                   )}
                 </div>
                 <p
                   dir="ltr"
-                  className="text-left text-sm leading-7 text-white/75"
+                  className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
                 >
-                  ستظهر الترجمة هنا تلقائيًا.
+                  {result.arabicTranslation || "ستظهر الترجمة هنا تلقائيًا."}
                 </p>
               </div>
 
@@ -284,20 +402,25 @@ export default function Dashboard() {
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 rounded-full bg-[#2F80ED] animate-pulse" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
                   )}
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full border border-[#005EB8]/35 bg-[#005EB8]/15 px-3 py-1.5 text-xs text-[#cde7ff]">
-                    Fiscal Policy — السياسة المالية
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80">
-                    Aggregate Demand — الطلب الكلي
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/80">
-                    Taxation — الضرائب
-                  </span>
+                  {result.keywords.length > 0 ? (
+                    result.keywords.map((keyword, index) => (
+                      <span
+                        key={`${keyword.en}-${index}`}
+                        className="rounded-full border border-[#005EB8]/35 bg-[#005EB8]/15 px-3 py-1.5 text-xs text-[#cde7ff]"
+                      >
+                        {keyword.en} — {keyword.ar}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">
+                      Keywords will appear automatically
+                    </span>
+                  )}
                 </div>
               </div>
             </section>
