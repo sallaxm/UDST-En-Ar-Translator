@@ -44,6 +44,13 @@ async function parseApiResponse<T>(res: Response): Promise<T> {
   );
 }
 
+async function callExplainApi(formData: FormData): Promise<Response> {
+  return fetch("api/explain", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 const emptyResult: ResultData = {
   simple: "",
   arabicExplanation: "",
@@ -87,10 +94,7 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("text", textValue);
 
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await callExplainApi(formData);
 
       const data = await parseApiResponse<ResultData>(res);
 
@@ -115,10 +119,7 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await callExplainApi(formData);
 
       const data = await parseApiResponse<ResultData>(res);
 
