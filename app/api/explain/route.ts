@@ -3,16 +3,35 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-  throw new Error("Missing GEMINI_API_KEY in .env.local");
+function getModel() {
+  if (!apiKey) {
+    throw new Error("Missing GEMINI_API_KEY in .env.local");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  return genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+  });
 }
 
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-});
+function parseModelJson(textOutput: string) {
+  const trimmed = textOutput.trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (fencedMatch?.[1]) {
+      return JSON.parse(fencedMatch[1].trim());
+    }
+
+    throw new Error("Model response was not valid JSON");
+  }
+}
 
 async function analyzeText(text: string) {
+  const model = getModel();
   const prompt = `
 You help university students understand lecture material.
 
@@ -41,10 +60,11 @@ ${text}
   const response = await result.response;
   const textOutput = response.text();
 
-  return JSON.parse(textOutput);
+  return parseModelJson(textOutput);
 }
 
 async function analyzeImage(file: File) {
+  const model = getModel();
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString("base64");
 
@@ -82,7 +102,7 @@ Rules:
   const response = await result.response;
   const textOutput = response.text();
 
-  return JSON.parse(textOutput);
+  return parseModelJson(textOutput);
 }
 
 export async function POST(req: Request) {
