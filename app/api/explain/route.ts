@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
+import { PDFDocument, PDFName } from "pdf-lib";
 import { inflateRawSync } from "node:zlib";
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -232,12 +232,83 @@ function normalizeExtractedText(text: string) {
   return text.replace(/\u0000/g, "").replace(/\s+/g, " ").trim();
 }
 
+function decodePdfLiteralString(value: string) {
+  return value
+    .replace(/\\([nrtbf()\\])/g, (_, ch: string) => {
+      const map: Record<string, string> = {
+        n: "\n",
+        r: "\r",
+        t: "\t",
+        b: "\b",
+        f: "\f",
+        "(": "(",
+        ")": ")",
+        "\\": "\\",
+      };
+      return map[ch] || ch;
+    })
+    .replace(/\\([0-7]{1,3})/g, (_, oct: string) => String.fromCharCode(Number.parseInt(oct, 8)));
+}
+
+function extractTextFromPdfOperators(streamText: string) {
+  const matches = streamText.matchAll(/\((?:\.|[^\)])*\)\s*Tj|\[(?:.|\n|\r)*?\]\s*TJ/g);
+  const chunks: string[] = [];
+
+  for (const match of matches) {
+    const token = match[0];
+
+    if (token.endsWith("Tj")) {
+      const literal = token.match(/\(((?:\.|[^\)])*)\)\s*Tj$/);
+      if (literal?.[1]) {
+        chunks.push(decodePdfLiteralString(literal[1]));
+      }
+      continue;
+    }
+
+    const arrayStrings = token.matchAll(/\(((?:\.|[^\)])*)\)/g);
+    for (const item of arrayStrings) {
+      if (item[1]) {
+        chunks.push(decodePdfLiteralString(item[1]));
+      }
+    }
+  }
+
+  return chunks.join(" ");
+}
+
+
 async function extractPdfText(file: File) {
   const bytes = await file.arrayBuffer();
-  const parser = new PDFParse({ data: Buffer.from(bytes) });
-  const data = await parser.getText();
-  await parser.destroy();
-  return normalizeExtractedText(data.text || "");
+  const pdfDoc = await PDFDocument.load(bytes);
+
+  const extractedParts: string[] = [];
+
+  for (const page of pdfDoc.getPages()) {
+    const node = page.node as unknown as {
+      dict: {
+        get(name: PDFName): unknown;
+      };
+      context: {
+        lookup(value: unknown): { getUnencodedContents?: () => Uint8Array[] } | undefined;
+      };
+    };
+
+    const contentsRef = node.dict.get(PDFName.of("Contents"));
+    if (!contentsRef) continue;
+
+    const lookedUp = node.context.lookup(contentsRef);
+    const streams = lookedUp?.getUnencodedContents?.() || [];
+
+    for (const stream of streams) {
+      const streamText = Buffer.from(stream).toString("latin1");
+      const parsedText = extractTextFromPdfOperators(streamText);
+      if (parsedText) {
+        extractedParts.push(parsedText);
+      }
+    }
+  }
+
+  return normalizeExtractedText(extractedParts.join(" "));
 }
 
 async function extractZipEntryText(file: File, entryPattern: RegExp) {
