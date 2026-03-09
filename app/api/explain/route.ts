@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import pdf from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -13,8 +13,14 @@ async function fileToBuffer(file: File): Promise<Buffer> {
 
 async function extractTextFromPdf(file: File): Promise<string> {
   const buffer = await fileToBuffer(file);
-  const data = await pdf(buffer);
-  return data.text || "";
+  const parser = new PDFParse({ data: buffer });
+
+  try {
+    const data = await parser.getText();
+    return data.text || "";
+  } finally {
+    await parser.destroy();
+  }
 }
 
 async function analyzeText(text: string) {
