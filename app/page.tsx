@@ -21,6 +21,12 @@ const emptyResult: ResultData = {
   keywords: [],
 };
 
+
+function isPdfFile(file: File): boolean {
+  const fileName = file.name?.toLowerCase() ?? "";
+  return file.type === "application/pdf" || fileName.endsWith(".pdf");
+}
+
 function LoadingLines({ arabic = false }: { arabic?: boolean }) {
   return (
     <div className={`space-y-3 ${arabic ? "text-left" : ""}`}>
@@ -125,13 +131,20 @@ export default function Dashboard() {
 
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
-    } else if (file.type === "application/pdf") {
-      setSelectedFileType("pdf");
-    } else {
-      setSelectedFileType("powerpoint");
+      void processFile(file);
+      return;
     }
 
-    void processFile(file);
+    if (isPdfFile(file)) {
+      setSelectedFileType("pdf");
+      void processFile(file);
+      return;
+    }
+
+    setSelectedFileType("powerpoint");
+    setError(
+      "PowerPoint is not supported yet. Please export slides as a PDF and upload the PDF."
+    );
   };
 
   const openFilePicker = () => {
