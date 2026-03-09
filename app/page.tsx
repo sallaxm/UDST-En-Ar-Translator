@@ -21,6 +21,17 @@ const emptyResult: ResultData = {
   keywords: [],
 };
 
+function LoadingLines({ arabic = false }: { arabic?: boolean }) {
+  return (
+    <div className={`space-y-3 ${arabic ? "text-left" : ""}`}>
+      <div className="h-4 w-full animate-pulse rounded-full bg-white/8" />
+      <div className="h-4 w-11/12 animate-pulse rounded-full bg-white/8" />
+      <div className="h-4 w-10/12 animate-pulse rounded-full bg-white/8" />
+      <div className="h-4 w-8/12 animate-pulse rounded-full bg-white/8" />
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [input, setInput] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -110,6 +121,7 @@ export default function Dashboard() {
     setSelectedFileName(file.name);
     setInput("");
     setError("");
+    setResult(emptyResult);
 
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
@@ -165,31 +177,32 @@ export default function Dashboard() {
     };
   }, [input, selectedFile]);
 
+  const hasResult =
+    result.simple ||
+    result.arabicExplanation ||
+    result.arabicTranslation ||
+    result.keywords.length > 0;
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(0,94,184,0.18),_transparent_30%),linear-gradient(180deg,_#060914_0%,_#0b1020_45%,_#0f172a_100%)] text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.10),_transparent_24%),linear-gradient(180deg,_#050816_0%,_#0a1020_45%,_#0d1528_100%)] text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col md:flex-row">
-        <aside className="sticky top-0 z-20 border-b border-white/10 bg-[#0b1020]/80 backdrop-blur-2xl md:h-screen md:w-72 md:border-b-0 md:border-r">
+        <aside className="sticky top-0 z-20 border-b border-white/8 bg-[#09101f]/80 backdrop-blur-2xl md:h-screen md:w-64 md:border-b-0 md:border-r">
           <div className="px-4 py-4 md:p-6">
-            <div className="space-y-1">
-              <div className="inline-flex items-center rounded-full border border-[#005EB8]/40 bg-[#005EB8]/15 px-3 py-1 text-[11px] font-medium text-[#9fd0ff]">
-                UDST Notes
-              </div>
-              <h1 className="mt-2 text-lg font-semibold tracking-tight md:text-xl">
-                Translator
-              </h1>
-              <p className="text-xs text-white/45 md:text-sm">
-                English to Arabic lecture support
-              </p>
-            </div>
+            <h1 className="text-lg font-semibold tracking-tight md:text-xl">
+              Translator
+            </h1>
+            <p className="mt-1 text-sm text-white/40">
+              English to Arabic support
+            </p>
           </div>
 
           <nav className="flex gap-2 overflow-x-auto px-4 pb-4 text-sm [&::-webkit-scrollbar]:hidden md:flex-col md:px-6 md:pb-0">
-            <button className="shrink-0 rounded-2xl border border-[#005EB8]/30 bg-[#005EB8]/20 px-4 py-2.5 text-left text-white shadow-[0_8px_30px_rgba(0,94,184,0.15)]">
+            <button className="shrink-0 rounded-2xl border border-[#3b82f6]/25 bg-[#3b82f6]/12 px-4 py-2.5 text-left text-white shadow-[0_10px_30px_rgba(59,130,246,0.10)]">
               Translator
             </button>
             <a
               href="/about"
-              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/65 transition hover:bg-white/10 hover:text-white"
+              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/60 transition hover:bg-white/6 hover:text-white"
             >
               About
             </a>
@@ -198,35 +211,29 @@ export default function Dashboard() {
 
         <main className="flex-1 p-3 pb-8 sm:p-4 md:p-8 lg:p-10">
           <div className="mx-auto max-w-5xl space-y-4 md:space-y-6">
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:p-7">
-              <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <div className="mb-3 inline-flex items-center rounded-full border border-[#005EB8]/35 bg-[#005EB8]/15 px-3 py-1 text-[11px] font-medium text-[#9fd0ff] md:text-xs">
-                    Auto-processing mobile-first dashboard
-                  </div>
-                  <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
-                    Lecture Translator
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55 md:text-base">
-                    Optimized for phone photos, screenshots, PDFs, and
-                    PowerPoints. Upload or paste and it starts automatically.
-                  </p>
-                </div>
+            <section className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:p-7">
+              <div className="mb-5">
+                <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
+                  Lecture Translator
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50 md:text-base">
+                  Upload a photo, screenshot, or PDF — or paste text.
+                </p>
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-black/20 p-3 sm:p-4">
+              <div className="rounded-[24px] border border-white/8 bg-black/20 p-3 sm:p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-medium text-white md:text-base">
                       Input
                     </h3>
-                    <p className="text-xs text-white/40 md:text-sm">
-                      Paste notes, upload a document, or take a photo
+                    <p className="text-xs text-white/35 md:text-sm">
+                      Camera, file, or text
                     </p>
                   </div>
 
-                  <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60">
-                    {isProcessing ? "Processing..." : "Ready"}
+                  <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[11px] text-white/55">
+                    {isProcessing ? "Processing" : "Ready"}
                   </div>
                 </div>
 
@@ -234,7 +241,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={openCameraPicker}
-                    className="rounded-2xl border border-[#005EB8]/25 bg-[#005EB8]/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-[#005EB8]/20"
+                    className="rounded-2xl border border-[#60a5fa]/20 bg-[#3b82f6]/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-[#3b82f6]/16"
                   >
                     Take Photo
                   </button>
@@ -242,7 +249,7 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={openFilePicker}
-                    className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition hover:bg-white/10"
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white/90 transition hover:bg-white/[0.07]"
                   >
                     Upload File
                   </button>
@@ -266,24 +273,22 @@ export default function Dashboard() {
                 />
 
                 {selectedFileName && (
-                  <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-white">
                         {selectedFileName}
                       </p>
-                      <p className="mt-1 text-xs text-white/45 capitalize">
-                        {selectedFileType === "image" && "Image uploaded"}
-                        {selectedFileType === "pdf" && "PDF uploaded"}
-                        {selectedFileType === "powerpoint" &&
-                          "PowerPoint uploaded"}
-                        {isProcessing && " • processing automatically"}
+                      <p className="mt-1 text-xs text-white/40 capitalize">
+                        {selectedFileType === "image" && "Image"}
+                        {selectedFileType === "pdf" && "PDF"}
+                        {selectedFileType === "powerpoint" && "PowerPoint"}
                       </p>
                     </div>
 
                     <button
                       type="button"
                       onClick={clearSelectedFile}
-                      className="ml-3 shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
+                      className="ml-3 shrink-0 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/65 transition hover:bg-white/[0.07] hover:text-white"
                     >
                       Clear
                     </button>
@@ -298,27 +303,25 @@ export default function Dashboard() {
                     setSelectedFileType("");
                     setInput(e.target.value);
                   }}
-                  placeholder="Paste lecture text here and it will process automatically..."
-                  className="h-40 w-full resize-none rounded-3xl border border-white/10 bg-[#0b1020]/80 px-4 py-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-[#2F80ED]/60 focus:bg-[#0b1020] md:h-48"
+                  placeholder="Paste lecture text here..."
+                  className="h-40 w-full resize-none rounded-[24px] border border-white/8 bg-[#09101f]/80 px-4 py-4 text-sm text-white placeholder:text-white/22 outline-none transition focus:border-[#60a5fa]/45 focus:bg-[#09101f] md:h-48"
                 />
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">
-                    Phone photos
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">
-                    Screenshots
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">
-                    PDFs
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">
-                    PowerPoints
-                  </span>
+                  {["Phone photos", "Screenshots", "PDFs", "PowerPoints"].map(
+                    (item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/55"
+                      >
+                        {item}
+                      </span>
+                    )
+                  )}
                 </div>
 
                 {error && (
-                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                  <div className="mt-4 rounded-2xl border border-red-400/15 bg-red-400/10 px-4 py-3 text-sm text-red-200">
                     {error}
                   </div>
                 )}
@@ -326,104 +329,129 @@ export default function Dashboard() {
             </section>
 
             <section className="grid gap-4 md:grid-cols-2 md:gap-6">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Simple English
                     </h3>
-                    <p className="text-xs text-white/45 md:text-sm">
-                      Clear, easier wording
+                    <p className="text-xs text-white/40 md:text-sm">
+                      Easier wording
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
                   )}
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-7 text-white/75">
-                  {result.simple ||
-                    "Your simplified explanation will appear here automatically."}
-                </p>
+
+                {isProcessing ? (
+                  <LoadingLines />
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm leading-7 text-white/75">
+                    {result.simple || "Your simplified explanation will appear here."}
+                  </p>
+                )}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Arabic Explanation
                     </h3>
-                    <p className="text-xs text-white/45 md:text-sm">
-                      شرح مبسط بالعربية
+                    <p className="text-xs text-white/40 md:text-sm">
+                      شرح مبسط
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
                   )}
                 </div>
-                <p
-                  dir="ltr"
-                  className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
-                >
-                  {result.arabicExplanation ||
-                    "سيظهر الشرح هنا تلقائيًا بعد رفع الصورة أو الملف أو لصق النص."}
-                </p>
+
+                {isProcessing ? (
+                  <LoadingLines arabic />
+                ) : (
+                  <p
+                    dir="ltr"
+                    className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
+                  >
+                    {result.arabicExplanation || "سيظهر الشرح هنا."}
+                  </p>
+                )}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Arabic Translation
                     </h3>
-                    <p className="text-xs text-white/45 md:text-sm">
-                      ترجمة مباشرة للنص
+                    <p className="text-xs text-white/40 md:text-sm">
+                      Direct translation
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
                   )}
                 </div>
-                <p
-                  dir="ltr"
-                  className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
-                >
-                  {result.arabicTranslation || "ستظهر الترجمة هنا تلقائيًا."}
-                </p>
+
+                {isProcessing ? (
+                  <LoadingLines arabic />
+                ) : (
+                  <p
+                    dir="ltr"
+                    className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
+                  >
+                    {result.arabicTranslation || "ستظهر الترجمة هنا."}
+                  </p>
+                )}
               </div>
 
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold md:text-lg">
                       Keywords
                     </h3>
-                    <p className="text-xs text-white/45 md:text-sm">
-                      Main terms with Arabic meaning
+                    <p className="text-xs text-white/40 md:text-sm">
+                      Key terms
                     </p>
                   </div>
                   {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#2F80ED]" />
+                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {result.keywords.length > 0 ? (
-                    result.keywords.map((keyword, index) => (
+                {isProcessing ? (
+                  <div className="flex flex-wrap gap-2">
+                    <div className="h-8 w-36 animate-pulse rounded-full bg-white/8" />
+                    <div className="h-8 w-44 animate-pulse rounded-full bg-white/8" />
+                    <div className="h-8 w-32 animate-pulse rounded-full bg-white/8" />
+                  </div>
+                ) : result.keywords.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {result.keywords.map((keyword, index) => (
                       <span
                         key={`${keyword.en}-${index}`}
-                        className="rounded-full border border-[#005EB8]/35 bg-[#005EB8]/15 px-3 py-1.5 text-xs text-[#cde7ff]"
+                        className="rounded-full border border-[#60a5fa]/20 bg-[#3b82f6]/10 px-3 py-1.5 text-xs text-[#d8ebff]"
                       >
                         {keyword.en} — {keyword.ar}
                       </span>
-                    ))
-                  ) : (
-                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">
-                      Keywords will appear automatically
-                    </span>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/55">
+                    Keywords will appear here
+                  </span>
+                )}
               </div>
             </section>
+
+            {!isProcessing && !hasResult && !error && (
+              <div className="px-1 text-center text-sm text-white/35">
+                Upload something or paste text to begin.
+              </div>
+            )}
           </div>
         </main>
       </div>
