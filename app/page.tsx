@@ -37,7 +37,6 @@ async function parseApiResponse<T>(res: Response): Promise<T> {
     throw new Error("Too many requests. Please wait a moment and try again.");
   }
 
-
   throw new Error(
     bodyText
       ? `Server error (${res.status}). Please try again. ${bodyText.slice(0, 120)}`
