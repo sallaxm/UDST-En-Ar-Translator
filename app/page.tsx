@@ -21,6 +21,12 @@ const emptyResult: ResultData = {
   keywords: [],
 };
 
+
+function isPdfFile(file: File): boolean {
+  const fileName = file.name?.toLowerCase() ?? "";
+  return file.type === "application/pdf" || fileName.endsWith(".pdf");
+}
+
 function LoadingLines({ arabic = false }: { arabic?: boolean }) {
   return (
     <div className={`space-y-3 ${arabic ? "text-left" : ""}`}>
@@ -129,7 +135,7 @@ export default function Dashboard() {
       return;
     }
 
-    if (file.type === "application/pdf") {
+    if (isPdfFile(file)) {
       setSelectedFileType("pdf");
       void processFile(file);
       return;

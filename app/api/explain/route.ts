@@ -30,6 +30,12 @@ async function fileToBuffer(file: File): Promise<Buffer> {
   return Buffer.from(arrayBuffer);
 }
 
+
+function isPdfFile(file: File): boolean {
+  const fileName = file.name?.toLowerCase() ?? "";
+  return file.type === "application/pdf" || fileName.endsWith(".pdf");
+}
+
 async function extractTextFromPdf(file: File): Promise<string> {
   const buffer = await fileToBuffer(file);
   const parser = new PDFParse({ data: buffer });
@@ -173,7 +179,7 @@ export async function POST(req: Request) {
         return NextResponse.json(result);
       }
 
-      if (file.type === "application/pdf") {
+      if (isPdfFile(file)) {
         const extractedText = await extractTextFromPdf(file);
 
         if (!extractedText.trim()) {
