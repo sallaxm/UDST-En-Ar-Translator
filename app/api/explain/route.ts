@@ -3,6 +3,30 @@ import { NextResponse } from "next/server";
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
+const RATE_LIMIT_MAX_REQUESTS = Number.parseInt(
+  process.env.API_RATE_LIMIT_MAX_REQUESTS || "10",
+  10
+);
+const RATE_LIMIT_WINDOW_MS = Number.parseInt(
+  process.env.API_RATE_LIMIT_WINDOW_MS || "60000",
+  10
+);
+
+type RateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
+type GlobalWithRateLimitStore = typeof globalThis & {
+  explainRouteRateLimitStore?: Map<string, RateLimitEntry>;
+};
+
+const rateLimitStore =
+  (globalThis as GlobalWithRateLimitStore).explainRouteRateLimitStore ||
+  new Map<string, RateLimitEntry>();
+
+(globalThis as GlobalWithRateLimitStore).explainRouteRateLimitStore = rateLimitStore;
+
 class ApiError extends Error {
   status: number;
 
@@ -43,6 +67,59 @@ function parseModelJson(textOutput: string) {
 
     throw new ApiError("Model returned an invalid response format.", 502);
   }
+}
+
+function getRequestClientId(req: Request) {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp.trim();
+  }
+
+  return "unknown-client";
+}
+
+function enforceRateLimit(req: Request) {
+  if (
+    Number.isNaN(RATE_LIMIT_MAX_REQUESTS) ||
+    Number.isNaN(RATE_LIMIT_WINDOW_MS) ||
+    RATE_LIMIT_MAX_REQUESTS <= 0 ||
+    RATE_LIMIT_WINDOW_MS <= 0
+  ) {
+    throw new ApiError("Rate limit configuration is invalid.", 500);
+  }
+
+  const now = Date.now();
+
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (value.resetAt <= now) {
+      rateLimitStore.delete(key);
+    }
+  }
+
+  const clientId = getRequestClientId(req);
+  const existing = rateLimitStore.get(clientId);
+
+  if (!existing || existing.resetAt <= now) {
+    rateLimitStore.set(clientId, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return;
+  }
+
+  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) {
+    throw new ApiError(
+      `Rate limit exceeded. Try again in ${Math.ceil((existing.resetAt - now) / 1000)} seconds.`,
+      429
+    );
+  }
+
+  existing.count += 1;
 }
 
 async function generateWithGemini(parts: Array<{ text?: string; inline_data?: GeminiInlineData }>) {
@@ -151,6 +228,8 @@ Rules:
 
 export async function POST(req: Request) {
   try {
+    enforceRateLimit(req);
+
     const formData = await req.formData();
 
     const text = formData.get("text");
