@@ -2,9 +2,28 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+class ExplainApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = "ExplainApiError";
+  }
+}
+
+function getClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    throw new ExplainApiError(
+      "Missing OPENAI_API_KEY server environment variable. Add it to your .env.local file and restart the dev server.",
+      503
+    );
+  }
+
+  return new OpenAI({ apiKey });
+}
 
 async function fileToBuffer(file: File): Promise<Buffer> {
   const arrayBuffer = await file.arrayBuffer();
@@ -23,7 +42,26 @@ async function extractTextFromPdf(file: File): Promise<string> {
   }
 }
 
+function parseModelJson(content: string | null): Record<string, unknown> {
+  if (!content) {
+    throw new ExplainApiError(
+      "The AI service returned an empty response. Please try again.",
+      502
+    );
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw new ExplainApiError(
+      "The AI service returned an unexpected response format. Please try again.",
+      502
+    );
+  }
+}
+
 async function analyzeText(text: string) {
+  const client = getClient();
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -58,10 +96,11 @@ Rules:
     ],
   });
 
-  return JSON.parse(response.choices[0].message.content || "{}");
+  return parseModelJson(response.choices[0].message.content);
 }
 
 async function analyzeImage(file: File) {
+  const client = getClient();
   const buffer = await fileToBuffer(file);
   const mimeType = file.type || "image/jpeg";
   const base64 = buffer.toString("base64");
@@ -113,7 +152,7 @@ Rules:
     ],
   });
 
-  return JSON.parse(response.choices[0].message.content || "{}");
+  return parseModelJson(response.choices[0].message.content);
 }
 
 export async function POST(req: Request) {
@@ -163,6 +202,25 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error(error);
+
+    if (error instanceof ExplainApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof error.status === "number" &&
+      "message" in error &&
+      typeof error.message === "string"
+    ) {
+      return NextResponse.json(
+        { error: `OpenAI request failed: ${error.message}` },
+        { status: error.status }
+      );
+    }
+
     return NextResponse.json(
       { error: "Something went wrong while processing the content." },
       { status: 500 }
