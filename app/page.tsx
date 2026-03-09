@@ -37,11 +37,6 @@ async function parseApiResponse<T>(res: Response): Promise<T> {
     throw new Error("Too many requests. Please wait a moment and try again.");
   }
 
-  if (res.status === 405) {
-    throw new Error(
-      "Translation endpoint rejected the request method (405). Please redeploy or verify your API route setup."
-    );
-  }
 
   throw new Error(
     bodyText
@@ -51,16 +46,7 @@ async function parseApiResponse<T>(res: Response): Promise<T> {
 }
 
 async function callExplainApi(formData: FormData): Promise<Response> {
-  const primary = await fetch("/api/explain", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (primary.status !== 405) {
-    return primary;
-  }
-
-  return fetch("/api/explain/", {
+  return fetch("api/explain", {
     method: "POST",
     body: formData,
   });
