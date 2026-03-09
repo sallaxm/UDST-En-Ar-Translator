@@ -125,13 +125,20 @@ export default function Dashboard() {
 
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
-    } else if (file.type === "application/pdf") {
-      setSelectedFileType("pdf");
-    } else {
-      setSelectedFileType("powerpoint");
+      void processFile(file);
+      return;
     }
 
-    void processFile(file);
+    if (file.type === "application/pdf") {
+      setSelectedFileType("pdf");
+      void processFile(file);
+      return;
+    }
+
+    setSelectedFileType("powerpoint");
+    setError(
+      "PowerPoint is not supported yet. Please export slides as a PDF and upload the PDF."
+    );
   };
 
   const openFilePicker = () => {
