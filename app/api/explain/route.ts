@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const modelName = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 class ApiError extends Error {
   status: number;
