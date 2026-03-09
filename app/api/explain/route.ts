@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import "pdf-parse/worker";
 import { PDFParse } from "pdf-parse";
 
 class ExplainApiError extends Error {
@@ -30,7 +31,6 @@ async function fileToBuffer(file: File): Promise<Buffer> {
   return Buffer.from(arrayBuffer);
 }
 
-
 function isPdfFile(file: File): boolean {
   const fileName = file.name?.toLowerCase() ?? "";
   return file.type === "application/pdf" || fileName.endsWith(".pdf");
@@ -38,7 +38,7 @@ function isPdfFile(file: File): boolean {
 
 async function extractTextFromPdf(file: File): Promise<string> {
   const buffer = await fileToBuffer(file);
-  const parser = new PDFParse({ data: buffer });
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
 
   try {
     const result = await parser.getText();
@@ -174,7 +174,7 @@ async function parseRequestInput(req: Request): Promise<{
       body = (await req.json()) as { text?: unknown };
     } catch {
       throw new ExplainApiError(
-        "Invalid JSON body. Send JSON like { \"text\": \"...\" }.",
+        'Invalid JSON body. Send JSON like { "text": "..." }.',
         400
       );
     }
