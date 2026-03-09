@@ -1,18 +1,33 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
-function getModel() {
-  if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY in .env.local");
+class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status = 500) {
+    super(message);
+    this.status = status;
   }
+}
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+type GeminiPart = {
+  text: string;
+};
 
-  return genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-  });
+type GeminiInlineData = {
+  mime_type: string;
+  data: string;
+};
+
+function ensureApiKey() {
+  if (!apiKey) {
+    throw new ApiError(
+      "Missing AI API key. Set GEMINI_API_KEY (or GOOGLE_API_KEY) in your environment.",
+      503
+    );
+  }
 }
 
 function parseModelJson(textOutput: string) {
@@ -26,12 +41,51 @@ function parseModelJson(textOutput: string) {
       return JSON.parse(fencedMatch[1].trim());
     }
 
-    throw new Error("Model response was not valid JSON");
+    throw new ApiError("Model returned an invalid response format.", 502);
   }
 }
 
+async function generateWithGemini(parts: Array<{ text?: string; inline_data?: GeminiInlineData }>) {
+  ensureApiKey();
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts,
+        },
+      ],
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = payload?.error?.message || "AI provider request failed.";
+    throw new ApiError(message, response.status === 429 ? 429 : 502);
+  }
+
+  const text = payload?.candidates?.[0]?.content?.parts
+    ?.map((part: GeminiPart) => part.text)
+    .filter(Boolean)
+    .join("\n")
+    ?.trim();
+
+  if (!text) {
+    throw new ApiError("AI provider returned an empty response.", 502);
+  }
+
+  return parseModelJson(text);
+}
+
 async function analyzeText(text: string) {
-  const model = getModel();
   const prompt = `
 You help university students understand lecture material.
 
@@ -56,15 +110,10 @@ Text:
 ${text}
 `;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const textOutput = response.text();
-
-  return parseModelJson(textOutput);
+  return generateWithGemini([{ text: prompt }]);
 }
 
 async function analyzeImage(file: File) {
-  const model = getModel();
   const bytes = await file.arrayBuffer();
   const base64 = Buffer.from(bytes).toString("base64");
 
@@ -89,20 +138,15 @@ Rules:
 - JSON only
 `;
 
-  const result = await model.generateContent([
-    prompt,
+  return generateWithGemini([
+    { text: prompt },
     {
-      inlineData: {
-        mimeType: file.type,
+      inline_data: {
+        mime_type: file.type,
         data: base64,
       },
     },
   ]);
-
-  const response = await result.response;
-  const textOutput = response.text();
-
-  return parseModelJson(textOutput);
 }
 
 export async function POST(req: Request) {
@@ -123,18 +167,16 @@ export async function POST(req: Request) {
         return NextResponse.json(result);
       }
 
-      return NextResponse.json(
-        { error: "Only images supported for now." },
-        { status: 400 }
-      );
+      throw new ApiError("Only image uploads are supported for now.", 400);
     }
 
-    return NextResponse.json(
-      { error: "No text or file provided." },
-      { status: 400 }
-    );
+    throw new ApiError("No text or file provided.", 400);
   } catch (error) {
     console.error(error);
+
+    if (error instanceof ApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
 
     return NextResponse.json(
       { error: "Failed to process request." },

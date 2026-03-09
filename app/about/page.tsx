@@ -1,14 +1,16 @@
+import Link from "next/link";
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_28%),linear-gradient(180deg,_#050816_0%,_#0a1020_45%,_#0d1528_100%)] text-white">
       <div className="mx-auto max-w-3xl px-6 py-12">
 
-        <a
+        <Link
           href="/"
           className="mb-8 inline-flex rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/80 transition hover:bg-white/[0.08]"
         >
           ← Back
-        </a>
+        </Link>
 
         <h1 className="mb-8 text-3xl font-semibold tracking-tight">
           About
