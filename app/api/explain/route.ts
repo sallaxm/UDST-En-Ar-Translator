@@ -2,11 +2,24 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
 
+class ExplainApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = "ExplainApiError";
+  }
+}
+
 function getClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
+    throw new ExplainApiError(
+      "Missing OPENAI_API_KEY server environment variable. Add it to your .env.local file and restart the dev server.",
+      503
+    );
   }
 
   return new OpenAI({ apiKey });
@@ -31,13 +44,19 @@ async function extractTextFromPdf(file: File): Promise<string> {
 
 function parseModelJson(content: string | null): Record<string, unknown> {
   if (!content) {
-    throw new Error("Model returned an empty response.");
+    throw new ExplainApiError(
+      "The AI service returned an empty response. Please try again.",
+      502
+    );
   }
 
   try {
     return JSON.parse(content);
   } catch {
-    throw new Error("Model returned invalid JSON.");
+    throw new ExplainApiError(
+      "The AI service returned an unexpected response format. Please try again.",
+      502
+    );
   }
 }
 
@@ -184,13 +203,21 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error(error);
 
-    if (error instanceof Error && error.message === "OPENAI_API_KEY is not configured.") {
+    if (error instanceof ExplainApiError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof error.status === "number" &&
+      "message" in error &&
+      typeof error.message === "string"
+    ) {
       return NextResponse.json(
-        {
-          error:
-            "Missing OPENAI_API_KEY server environment variable. Add it to your .env.local file and restart the dev server.",
-        },
-        { status: 503 }
+        { error: `OpenAI request failed: ${error.message}` },
+        { status: error.status }
       );
     }
 
