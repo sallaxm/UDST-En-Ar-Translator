@@ -1,187 +1,110 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-class ExplainApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number
-  ) {
-    super(message);
-    this.name = "ExplainApiError";
-  }
+const apiKey = process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+  throw new Error("Missing GEMINI_API_KEY in .env.local");
 }
 
-function getClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new ExplainApiError(
-      "Missing OPENAI_API_KEY in .env.local. Add it and restart the dev server.",
-      503
-    );
-  }
-
-  return new OpenAI({ apiKey });
-}
-
-async function fileToBuffer(file: File): Promise<Buffer> {
-  const arrayBuffer = await file.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-}
-
-function parseModelJson(content: string | null): Record<string, unknown> {
-  if (!content) {
-    throw new ExplainApiError("The AI returned an empty response.", 502);
-  }
-
-  try {
-    return JSON.parse(content);
-  } catch {
-    throw new ExplainApiError("The AI returned invalid JSON.", 502);
-  }
-}
+const genAI = new GoogleGenerativeAI(apiKey);
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+});
 
 async function analyzeText(text: string) {
-  const client = getClient();
-
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `
+  const prompt = `
 You help university students understand lecture material.
 
-Return valid JSON only in this exact shape:
+Return JSON in this exact format:
+
 {
   "simple": "simple english explanation",
   "arabicExplanation": "arabic explanation",
   "arabicTranslation": "direct arabic translation",
   "keywords": [
-    { "en": "keyword 1", "ar": "arabic translation 1" },
-    { "en": "keyword 2", "ar": "arabic translation 2" }
+    { "en": "keyword", "ar": "arabic translation" }
   ]
 }
 
 Rules:
-- Keep simple English easy for non-native students
-- Arabic should be natural and clear
-- Return 4 to 6 keywords
-- No markdown
-        `.trim(),
-      },
-      {
-        role: "user",
-        content: `Analyze this academic text:\n\n${text}`,
-      },
-    ],
-  });
+- simple English for non-native students
+- Arabic should be clear
+- return 4 to 6 keywords
+- JSON only
 
-  return parseModelJson(response.choices[0].message.content);
+Text:
+${text}
+`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const textOutput = response.text();
+
+  return JSON.parse(textOutput);
 }
 
 async function analyzeImage(file: File) {
-  const client = getClient();
-  const buffer = await fileToBuffer(file);
-  const mimeType = file.type || "image/jpeg";
-  const base64 = buffer.toString("base64");
-  const dataUrl = `data:${mimeType};base64,${base64}`;
+  const bytes = await file.arrayBuffer();
+  const base64 = Buffer.from(bytes).toString("base64");
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: `
-You help university students understand lecture material from images.
+  const prompt = `
+Read this lecture slide and explain it.
 
-Return valid JSON only in this exact shape:
+Return JSON in this exact format:
+
 {
   "simple": "simple english explanation",
   "arabicExplanation": "arabic explanation",
-  "arabicTranslation": "direct arabic translation of the main visible text",
+  "arabicTranslation": "direct arabic translation",
   "keywords": [
-    { "en": "keyword 1", "ar": "arabic translation 1" },
-    { "en": "keyword 2", "ar": "arabic translation 2" }
+    { "en": "keyword", "ar": "arabic translation" }
   ]
 }
 
 Rules:
-- Read the image carefully
-- If the image contains text, use that text
-- Keep simple English easy for non-native students
-- Return 4 to 6 keywords
-- No markdown
-        `.trim(),
+- simple English
+- Arabic explanation
+- 4 to 6 keywords
+- JSON only
+`;
+
+  const result = await model.generateContent([
+    prompt,
+    {
+      inlineData: {
+        mimeType: file.type,
+        data: base64,
       },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Read this lecture image and generate the JSON output.",
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: dataUrl,
-            },
-          },
-        ],
-      },
-    ],
-  });
+    },
+  ]);
 
-  return parseModelJson(response.choices[0].message.content);
-}
+  const response = await result.response;
+  const textOutput = response.text();
 
-async function parseRequestInput(req: Request): Promise<{
-  text: string | null;
-  file: File | null;
-}> {
-  const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
-
-  if (contentType.includes("application/json")) {
-    const body = (await req.json()) as { text?: unknown };
-
-    return {
-      text: typeof body.text === "string" ? body.text : null,
-      file: null,
-    };
-  }
-
-  const formData = await req.formData();
-  const text = formData.get("text");
-  const file = formData.get("file");
-
-  return {
-    text: typeof text === "string" ? text : null,
-    file: file instanceof File ? file : null,
-  };
+  return JSON.parse(textOutput);
 }
 
 export async function POST(req: Request) {
   try {
-    const { text, file } = await parseRequestInput(req);
+    const formData = await req.formData();
 
-    if (text && text.trim()) {
-      const result = await analyzeText(text.trim());
+    const text = formData.get("text");
+    const file = formData.get("file");
+
+    if (typeof text === "string" && text.trim()) {
+      const result = await analyzeText(text);
       return NextResponse.json(result);
     }
 
-    if (file) {
+    if (file instanceof File) {
       if (file.type.startsWith("image/")) {
         const result = await analyzeImage(file);
         return NextResponse.json(result);
       }
 
       return NextResponse.json(
-        {
-          error:
-            "PDF and PowerPoint support are temporarily disabled. Use text or image upload for now.",
-        },
+        { error: "Only images supported for now." },
         { status: 400 }
       );
     }
@@ -191,26 +114,10 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   } catch (error) {
-    console.error("API /api/explain error:", error);
-
-    if (error instanceof ExplainApiError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "message" in error &&
-      typeof error.message === "string"
-    ) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      );
-    }
+    console.error(error);
 
     return NextResponse.json(
-      { error: "Something went wrong while processing the content." },
+      { error: "Failed to process request." },
       { status: 500 }
     );
   }
