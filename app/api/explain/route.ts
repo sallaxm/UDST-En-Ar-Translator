@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { PDFParse } from "pdf-parse";
 
 class ExplainApiError extends Error {
   constructor(
@@ -36,33 +37,14 @@ function isPdfFile(file: File): boolean {
 }
 
 async function extractTextFromPdf(file: File): Promise<string> {
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const buffer = await fileToBuffer(file);
-  const loadingTask = getDocument({
-    data: new Uint8Array(buffer),
-    disableWorker: true,
-  });
-  const pdf = await loadingTask.promise;
+  const parser = new PDFParse({ data: buffer });
 
   try {
-    const pageTexts: string[] = [];
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const text = content.items
-        .map((item) => ("str" in item ? item.str : ""))
-        .join(" ")
-        .trim();
-
-      if (text) {
-        pageTexts.push(text);
-      }
-    }
-
-    return pageTexts.join("\n\n");
+    const result = await parser.getText();
+    return result.text.trim();
   } finally {
-    await pdf.destroy();
+    await parser.destroy();
   }
 }
 
