@@ -14,6 +14,58 @@ type ResultData = {
   keywords: Keyword[];
 };
 
+async function parseApiResponse<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    const data = (await res.json()) as T & { error?: string };
+
+    if (!res.ok) {
+      throw new Error(data.error || "Request failed.");
+    }
+
+    return data;
+  }
+
+  const bodyText = (await res.text()).trim();
+
+  if (res.status === 413) {
+    throw new Error("The uploaded file is too large. Please try a smaller PDF.");
+  }
+
+  if (res.status === 429) {
+    throw new Error("Too many requests. Please wait a moment and try again.");
+  }
+
+  if (res.status === 405) {
+    throw new Error(
+      "Translation endpoint rejected the request method (405). Please redeploy or verify your API route setup."
+    );
+  }
+
+  throw new Error(
+    bodyText
+      ? `Server error (${res.status}). Please try again. ${bodyText.slice(0, 120)}`
+      : `Server error (${res.status}). Please try again.`
+  );
+}
+
+async function callExplainApi(formData: FormData): Promise<Response> {
+  const primary = await fetch("/api/explain", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (primary.status !== 405) {
+    return primary;
+  }
+
+  return fetch("/api/explain/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 const emptyResult: ResultData = {
   simple: "",
   arabicExplanation: "",
@@ -57,25 +109,9 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("text", textValue);
 
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await callExplainApi(formData);
 
-      const contentType = res.headers.get("content-type") || "";
-
-      if (!contentType.includes("application/json")) {
-        const text = await res.text();
-        throw new Error(
-          `Server returned non-JSON response: ${text.slice(0, 200)}`
-        );
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to process text.");
-      }
+      const data = await parseApiResponse<ResultData>(res);
 
       setResult({
         simple: data.simple || "",
@@ -98,25 +134,9 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await callExplainApi(formData);
 
-      const contentType = res.headers.get("content-type") || "";
-
-      if (!contentType.includes("application/json")) {
-        const text = await res.text();
-        throw new Error(
-          `Server returned non-JSON response: ${text.slice(0, 200)}`
-        );
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to process file.");
-      }
+      const data = await parseApiResponse<ResultData>(res);
 
       setResult({
         simple: data.simple || "",
