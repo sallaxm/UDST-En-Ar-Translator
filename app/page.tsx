@@ -21,12 +21,6 @@ const emptyResult: ResultData = {
   keywords: [],
 };
 
-
-function isPdfFile(file: File): boolean {
-  const fileName = file.name?.toLowerCase() ?? "";
-  return file.type === "application/pdf" || fileName.endsWith(".pdf");
-}
-
 function LoadingLines({ arabic = false }: { arabic?: boolean }) {
   return (
     <div className={`space-y-3 ${arabic ? "text-left" : ""}`}>
@@ -68,6 +62,15 @@ export default function Dashboard() {
         body: formData,
       });
 
+      const contentType = res.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(
+          `Server returned non-JSON response: ${text.slice(0, 200)}`
+        );
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -100,6 +103,15 @@ export default function Dashboard() {
         body: formData,
       });
 
+      const contentType = res.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        const text = await res.text();
+        throw new Error(
+          `Server returned non-JSON response: ${text.slice(0, 200)}`
+        );
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -131,20 +143,13 @@ export default function Dashboard() {
 
     if (file.type.startsWith("image/")) {
       setSelectedFileType("image");
-      void processFile(file);
-      return;
-    }
-
-    if (isPdfFile(file)) {
+    } else if (file.type === "application/pdf") {
       setSelectedFileType("pdf");
-      void processFile(file);
-      return;
+    } else {
+      setSelectedFileType("powerpoint");
     }
 
-    setSelectedFileType("powerpoint");
-    setError(
-      "PowerPoint is not supported yet. Please export slides as a PDF and upload the PDF."
-    );
+    void processFile(file);
   };
 
   const openFilePicker = () => {
@@ -361,7 +366,8 @@ export default function Dashboard() {
                   <LoadingLines />
                 ) : (
                   <p className="whitespace-pre-wrap text-sm leading-7 text-white/75">
-                    {result.simple || "Your simplified explanation will appear here."}
+                    {result.simple ||
+                      "Your simplified explanation will appear here."}
                   </p>
                 )}
               </div>

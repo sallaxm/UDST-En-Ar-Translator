@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import "pdf-parse/worker";
-import { PDFParse } from "pdf-parse";
 
 class ExplainApiError extends Error {
   constructor(
@@ -18,7 +16,7 @@ function getClient(): OpenAI {
 
   if (!apiKey) {
     throw new ExplainApiError(
-      "Missing OPENAI_API_KEY server environment variable. Add it to your .env.local file and restart the dev server.",
+      "Missing OPENAI_API_KEY in .env.local. Add it and restart the dev server.",
       503
     );
   }
@@ -31,43 +29,21 @@ async function fileToBuffer(file: File): Promise<Buffer> {
   return Buffer.from(arrayBuffer);
 }
 
-function isPdfFile(file: File): boolean {
-  const fileName = file.name?.toLowerCase() ?? "";
-  return file.type === "application/pdf" || fileName.endsWith(".pdf");
-}
-
-async function extractTextFromPdf(file: File): Promise<string> {
-  const buffer = await fileToBuffer(file);
-  const parser = new PDFParse({ data: new Uint8Array(buffer) });
-
-  try {
-    const result = await parser.getText();
-    return result.text.trim();
-  } finally {
-    await parser.destroy();
-  }
-}
-
 function parseModelJson(content: string | null): Record<string, unknown> {
   if (!content) {
-    throw new ExplainApiError(
-      "The AI service returned an empty response. Please try again.",
-      502
-    );
+    throw new ExplainApiError("The AI returned an empty response.", 502);
   }
 
   try {
     return JSON.parse(content);
   } catch {
-    throw new ExplainApiError(
-      "The AI service returned an unexpected response format. Please try again.",
-      502
-    );
+    throw new ExplainApiError("The AI returned invalid JSON.", 502);
   }
 }
 
 async function analyzeText(text: string) {
   const client = getClient();
+
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -75,9 +51,9 @@ async function analyzeText(text: string) {
       {
         role: "system",
         content: `
-You are helping university students understand course material.
+You help university students understand lecture material.
 
-Return valid JSON only with this exact shape:
+Return valid JSON only in this exact shape:
 {
   "simple": "simple english explanation",
   "arabicExplanation": "arabic explanation",
@@ -90,7 +66,7 @@ Return valid JSON only with this exact shape:
 
 Rules:
 - Keep simple English easy for non-native students
-- Arabic text should be clear and natural
+- Arabic should be natural and clear
 - Return 4 to 6 keywords
 - No markdown
         `.trim(),
@@ -119,9 +95,9 @@ async function analyzeImage(file: File) {
       {
         role: "system",
         content: `
-You are helping university students understand lecture material from images.
+You help university students understand lecture material from images.
 
-Read the image carefully and return valid JSON only with this exact shape:
+Return valid JSON only in this exact shape:
 {
   "simple": "simple english explanation",
   "arabicExplanation": "arabic explanation",
@@ -133,7 +109,7 @@ Read the image carefully and return valid JSON only with this exact shape:
 }
 
 Rules:
-- Extract the academic meaning from the image
+- Read the image carefully
 - If the image contains text, use that text
 - Keep simple English easy for non-native students
 - Return 4 to 6 keywords
@@ -168,16 +144,7 @@ async function parseRequestInput(req: Request): Promise<{
   const contentType = req.headers.get("content-type")?.toLowerCase() ?? "";
 
   if (contentType.includes("application/json")) {
-    let body: { text?: unknown };
-
-    try {
-      body = (await req.json()) as { text?: unknown };
-    } catch {
-      throw new ExplainApiError(
-        'Invalid JSON body. Send JSON like { "text": "..." }.',
-        400
-      );
-    }
+    const body = (await req.json()) as { text?: unknown };
 
     return {
       text: typeof body.text === "string" ? body.text : null,
@@ -185,25 +152,14 @@ async function parseRequestInput(req: Request): Promise<{
     };
   }
 
-  if (
-    contentType.includes("multipart/form-data") ||
-    contentType.includes("application/x-www-form-urlencoded") ||
-    contentType === ""
-  ) {
-    const formData = await req.formData();
-    const text = formData.get("text");
-    const file = formData.get("file");
+  const formData = await req.formData();
+  const text = formData.get("text");
+  const file = formData.get("file");
 
-    return {
-      text: typeof text === "string" ? text : null,
-      file: file instanceof File ? file : null,
-    };
-  }
-
-  throw new ExplainApiError(
-    "Unsupported content type. Send JSON with { text } or multipart/form-data with text/file.",
-    415
-  );
+  return {
+    text: typeof text === "string" ? text : null,
+    file: file instanceof File ? file : null,
+  };
 }
 
 export async function POST(req: Request) {
@@ -221,24 +177,10 @@ export async function POST(req: Request) {
         return NextResponse.json(result);
       }
 
-      if (isPdfFile(file)) {
-        const extractedText = await extractTextFromPdf(file);
-
-        if (!extractedText.trim()) {
-          return NextResponse.json(
-            { error: "Could not extract text from PDF." },
-            { status: 400 }
-          );
-        }
-
-        const result = await analyzeText(extractedText);
-        return NextResponse.json(result);
-      }
-
       return NextResponse.json(
         {
           error:
-            "PowerPoint is not supported yet. For now, export slides as PDF and upload the PDF.",
+            "PDF and PowerPoint support are temporarily disabled. Use text or image upload for now.",
         },
         { status: 400 }
       );
@@ -249,7 +191,7 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   } catch (error) {
-    console.error(error);
+    console.error("API /api/explain error:", error);
 
     if (error instanceof ExplainApiError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
@@ -261,14 +203,9 @@ export async function POST(req: Request) {
       "message" in error &&
       typeof error.message === "string"
     ) {
-      const status =
-        "status" in error && typeof error.status === "number"
-          ? error.status
-          : 502;
-
       return NextResponse.json(
-        { error: `OpenAI request failed: ${error.message}` },
-        { status }
+        { error: error.message },
+        { status: 500 }
       );
     }
 
