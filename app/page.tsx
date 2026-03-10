@@ -14,6 +14,10 @@ type ResultData = {
   keywords: Keyword[];
 };
 
+const IMAGE_UPLOAD_TARGET_MAX_BYTES = 4 * 1024 * 1024;
+const IMAGE_UPLOAD_MAX_DIMENSION = 2200;
+const IMAGE_UPLOAD_MIN_QUALITY = 0.55;
+
 async function parseApiResponse<T>(res: Response): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
 
@@ -49,6 +53,79 @@ async function callExplainApi(formData: FormData): Promise<Response> {
     method: "POST",
     body: formData,
   });
+}
+
+function loadImageElement(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Could not read uploaded image."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Could not compress uploaded image."));
+          return;
+        }
+        resolve(blob);
+      },
+      type,
+      quality
+    );
+  });
+}
+
+async function prepareImageForUpload(file: File): Promise<File> {
+  if (file.size <= IMAGE_UPLOAD_TARGET_MAX_BYTES) {
+    return file;
+  }
+
+  const image = await loadImageElement(file);
+
+  const downscaleRatio = Math.min(
+    1,
+    IMAGE_UPLOAD_MAX_DIMENSION / Math.max(image.width, image.height)
+  );
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.width * downscaleRatio));
+  canvas.height = Math.max(1, Math.round(image.height * downscaleRatio));
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return file;
+  }
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const outputType = file.type === "image/png" ? "image/jpeg" : file.type;
+  const qualitySteps = [0.85, 0.75, 0.65, IMAGE_UPLOAD_MIN_QUALITY];
+
+  for (const quality of qualitySteps) {
+    const blob = await canvasToBlob(canvas, outputType, quality);
+    if (blob.size <= IMAGE_UPLOAD_TARGET_MAX_BYTES || quality === IMAGE_UPLOAD_MIN_QUALITY) {
+      const extension = outputType === "image/jpeg" ? "jpg" : file.name.split(".").pop() || "img";
+      const safeName = file.name.replace(/\.[^.]+$/, "") || "photo";
+      return new File([blob], `${safeName}-optimized.${extension}`, { type: outputType });
+    }
+  }
+
+  return file;
 }
 
 const emptyResult: ResultData = {
@@ -136,25 +213,35 @@ export default function Dashboard() {
     }
   };
 
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setSelectedFile(file);
-    setSelectedFileName(file.name);
+    let uploadFile = file;
+
+    if (file.type.startsWith("image/")) {
+      try {
+        uploadFile = await prepareImageForUpload(file);
+      } catch {
+        uploadFile = file;
+      }
+    }
+
+    setSelectedFile(uploadFile);
+    setSelectedFileName(uploadFile.name);
     setInput("");
     setError("");
     setResult(emptyResult);
 
-    const lowerName = file.name.toLowerCase();
+    const lowerName = uploadFile.name.toLowerCase();
 
-    if (file.type.startsWith("image/")) {
+    if (uploadFile.type.startsWith("image/")) {
       setSelectedFileType("image");
-    } else if (file.type === "application/pdf" || lowerName.endsWith(".pdf")) {
+    } else if (uploadFile.type === "application/pdf" || lowerName.endsWith(".pdf")) {
       setSelectedFileType("pdf");
     } else if (
-      file.type.includes("word") ||
-      file.type.includes("officedocument.wordprocessingml") ||
+      uploadFile.type.includes("word") ||
+      uploadFile.type.includes("officedocument.wordprocessingml") ||
       lowerName.endsWith(".doc") ||
       lowerName.endsWith(".docx")
     ) {
@@ -163,7 +250,7 @@ export default function Dashboard() {
       setSelectedFileType("powerpoint");
     }
 
-    void processFile(file);
+    void processFile(uploadFile);
   };
 
   const openFilePicker = () => {
