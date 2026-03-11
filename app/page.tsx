@@ -1,5 +1,6 @@
 "use client";
 
+import { Noto_Kufi_Arabic } from "next/font/google";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 type Keyword = {
@@ -19,6 +20,12 @@ type UiLanguage = "en" | "ar";
 const IMAGE_UPLOAD_TARGET_MAX_BYTES = 4 * 1024 * 1024;
 const IMAGE_UPLOAD_MAX_DIMENSION = 2200;
 const IMAGE_UPLOAD_MIN_QUALITY = 0.55;
+
+const arabicUiFont = Noto_Kufi_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
 
 const uiText = {
   en: {
@@ -549,7 +556,10 @@ export default function Dashboard() {
                 {isProcessing ? (
                   <LoadingLines arabic />
                 ) : (
-                  <p dir="ltr" className="whitespace-pre-wrap text-left text-sm leading-7 text-slate-300">
+                  <p
+                    dir="rtl"
+                    className={`${arabicUiFont.className} whitespace-pre-wrap text-right text-base leading-8 text-slate-200 md:text-lg`}
+                  >
                     {result.arabicExplanation || t.explanationEmpty}
                   </p>
                 )}
@@ -567,7 +577,10 @@ export default function Dashboard() {
                 {isProcessing ? (
                   <LoadingLines arabic />
                 ) : (
-                  <p dir="ltr" className="whitespace-pre-wrap text-left text-sm leading-7 text-slate-300">
+                  <p
+                    dir="rtl"
+                    className={`${arabicUiFont.className} whitespace-pre-wrap text-right text-base leading-8 text-slate-200 md:text-lg`}
+                  >
                     {result.arabicTranslation || t.translationEmpty}
                   </p>
                 )}
