@@ -60,7 +60,7 @@ const uiText = {
     appName: "المترجم",
     support: "دعم من الإنجليزية إلى العربية",
     translatorNav: "المترجم",
-    aboutNav: "نبذة",
+    aboutNav: "عن الموقع",
     languageToggle: "English",
     heading: "مترجم المحاضرات",
     subHeading: "ارفع صورة أو لقطة شاشة أو ملف PDF — أو الصق النص مباشرة.",
