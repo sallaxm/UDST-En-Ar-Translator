@@ -60,7 +60,7 @@ const uiText = {
     appName: "المترجم",
     support: "دعم من الإنجليزية إلى العربية",
     translatorNav: "المترجم",
-    aboutNav: "حول",
+    aboutNav: "نبذة",
     languageToggle: "English",
     heading: "مترجم المحاضرات",
     subHeading: "ارفع صورة أو لقطة شاشة أو ملف PDF — أو الصق النص مباشرة.",
@@ -222,7 +222,7 @@ function LoadingLines({ arabic = false }: { arabic?: boolean }) {
 }
 
 export default function Dashboard() {
-  const [language, setLanguage] = useState<UiLanguage>("en");
+  const [language, setLanguage] = useState<UiLanguage>("ar");
   const [input, setInput] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");

@@ -47,6 +47,29 @@ export default function AboutPage() {
             </p>
           </section>
 
+
+          <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
+            <h2 className="mb-3 text-xl font-semibold">Terms and Conditions</h2>
+
+            <ul className="list-disc space-y-2 pl-5 text-white/75">
+              <li>
+                This tool is provided on an &quot;as is&quot; basis for educational support and may produce
+                incorrect, incomplete, or outdated results.
+              </li>
+              <li>
+                You are responsible for reviewing all generated content before using it in study,
+                assignments, or communication.
+              </li>
+              <li>
+                Do not upload confidential, personal, or legally restricted documents.
+              </li>
+              <li>
+                By using this app, you agree that the maintainers are not liable for decisions made
+                based on generated outputs.
+              </li>
+            </ul>
+          </section>
+
           <section className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
             <h2 className="mb-3 text-xl font-semibold">Independence</h2>
 
