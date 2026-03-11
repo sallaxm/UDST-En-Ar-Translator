@@ -1,5 +1,6 @@
 "use client";
 
+import { Noto_Kufi_Arabic } from "next/font/google";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 type Keyword = {
@@ -14,9 +15,90 @@ type ResultData = {
   keywords: Keyword[];
 };
 
+type UiLanguage = "en" | "ar";
+
 const IMAGE_UPLOAD_TARGET_MAX_BYTES = 4 * 1024 * 1024;
 const IMAGE_UPLOAD_MAX_DIMENSION = 2200;
 const IMAGE_UPLOAD_MIN_QUALITY = 0.55;
+
+const arabicUiFont = Noto_Kufi_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+});
+
+const uiText = {
+  en: {
+    appName: "Translator",
+    support: "English to Arabic support",
+    translatorNav: "Translator",
+    aboutNav: "About",
+    languageToggle: "العربية",
+    heading: "Lecture Translator",
+    subHeading: "Upload a photo, screenshot, or PDF — or paste text.",
+    inputTitle: "Input",
+    inputHint: "Camera, file, or text",
+    statusProcessing: "Processing",
+    statusReady: "Ready",
+    takePhoto: "Take Photo",
+    uploadFile: "Upload File",
+    clear: "Clear",
+    placeholder: "Paste lecture text here...",
+    chips: ["Phone photos", "Screenshots", "PDFs", "Word Docs", "PowerPoints"],
+    simpleTitle: "Simple English",
+    simpleHint: "Easier wording",
+    simpleEmpty: "Your simplified explanation will appear here.",
+    explanationTitle: "Arabic Explanation",
+    explanationHint: "شرح مبسط",
+    explanationEmpty: "سيظهر الشرح هنا.",
+    translationTitle: "Arabic Translation",
+    translationHint: "Direct translation",
+    translationEmpty: "ستظهر الترجمة هنا.",
+    keywordsTitle: "Keywords",
+    keywordsHint: "Key terms",
+    keywordsEmpty: "Keywords will appear here",
+    startHint: "Upload something or paste text to begin.",
+    fileTypeImage: "Image",
+    fileTypePdf: "PDF",
+    fileTypeWord: "Word",
+    fileTypePowerpoint: "PowerPoint",
+  },
+  ar: {
+    appName: "المترجم",
+    support: "دعم من الإنجليزية إلى العربية",
+    translatorNav: "المترجم",
+    aboutNav: "عن الموقع",
+    languageToggle: "English",
+    heading: "مترجم المحاضرات",
+    subHeading: "ارفع صورة أو لقطة شاشة أو ملف PDF — أو الصق النص مباشرة.",
+    inputTitle: "الإدخال",
+    inputHint: "الكاميرا أو ملف أو نص",
+    statusProcessing: "جارٍ المعالجة",
+    statusReady: "جاهز",
+    takePhoto: "التقاط صورة",
+    uploadFile: "رفع ملف",
+    clear: "مسح",
+    placeholder: "الصق نص المحاضرة هنا...",
+    chips: ["صور الهاتف", "لقطات الشاشة", "ملفات PDF", "مستندات Word", "عروض PowerPoint"],
+    simpleTitle: "إنجليزية مبسطة",
+    simpleHint: "صياغة أسهل",
+    simpleEmpty: "سيظهر الشرح المبسط هنا.",
+    explanationTitle: "شرح بالعربية",
+    explanationHint: "شرح مبسط",
+    explanationEmpty: "سيظهر الشرح هنا.",
+    translationTitle: "الترجمة العربية",
+    translationHint: "ترجمة مباشرة",
+    translationEmpty: "ستظهر الترجمة هنا.",
+    keywordsTitle: "الكلمات المفتاحية",
+    keywordsHint: "مصطلحات أساسية",
+    keywordsEmpty: "ستظهر الكلمات المفتاحية هنا",
+    startHint: "ابدأ برفع ملف أو لصق نص.",
+    fileTypeImage: "صورة",
+    fileTypePdf: "PDF",
+    fileTypeWord: "Word",
+    fileTypePowerpoint: "PowerPoint",
+  },
+} as const;
 
 async function parseApiResponse<T>(res: Response): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
@@ -147,6 +229,7 @@ function LoadingLines({ arabic = false }: { arabic?: boolean }) {
 }
 
 export default function Dashboard() {
+  const [language, setLanguage] = useState<UiLanguage>("ar");
   const [input, setInput] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -160,6 +243,8 @@ export default function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const textTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const t = uiText[language];
 
   const processText = async (textValue: string) => {
     if (!textValue.trim()) return;
@@ -303,56 +388,54 @@ export default function Dashboard() {
     result.keywords.length > 0;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.10),_transparent_24%),linear-gradient(180deg,_#050816_0%,_#0a1020_45%,_#0d1528_100%)] text-white">
+    <div
+      dir={language === "ar" ? "rtl" : "ltr"}
+      className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(30,41,59,0.35),_transparent_35%),linear-gradient(180deg,_#030711_0%,_#060b16_52%,_#0a1220_100%)] text-slate-100"
+    >
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col md:flex-row">
-        <aside className="sticky top-0 z-20 border-b border-white/8 bg-[#09101f]/80 backdrop-blur-2xl md:h-screen md:w-64 md:border-b-0 md:border-r">
+        <aside className="sticky top-0 z-20 border-b border-slate-700/35 bg-[#060d1a]/90 backdrop-blur-xl md:h-screen md:w-64 md:border-b-0 md:border-r">
           <div className="px-4 py-4 md:p-6">
-            <h1 className="text-lg font-semibold tracking-tight md:text-xl">
-              Translator
-            </h1>
-            <p className="mt-1 text-sm text-white/40">
-              English to Arabic support
-            </p>
+            <h1 className="text-lg font-semibold tracking-tight md:text-xl">{t.appName}</h1>
+            <p className="mt-1 text-sm text-slate-400">{t.support}</p>
           </div>
 
           <nav className="flex gap-2 overflow-x-auto px-4 pb-4 text-sm [&::-webkit-scrollbar]:hidden md:flex-col md:px-6 md:pb-0">
-            <button className="shrink-0 rounded-2xl border border-[#3b82f6]/25 bg-[#3b82f6]/12 px-4 py-2.5 text-left text-white shadow-[0_10px_30px_rgba(59,130,246,0.10)]">
-              Translator
+            <button className="shrink-0 rounded-2xl border border-slate-500/40 bg-slate-700/30 px-4 py-2.5 text-left text-slate-100 shadow-[0_8px_26px_rgba(15,23,42,0.28)]">
+              {t.translatorNav}
             </button>
             <a
               href="/about"
-              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-white/60 transition hover:bg-white/6 hover:text-white"
+              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-100"
             >
-              About
+              {t.aboutNav}
             </a>
+            <button
+              type="button"
+              onClick={() => setLanguage((prev) => (prev === "en" ? "ar" : "en"))}
+              className="shrink-0 rounded-2xl border border-slate-600/40 bg-slate-800/55 px-4 py-2.5 text-left text-slate-200 transition hover:bg-slate-700/55"
+            >
+              {t.languageToggle}
+            </button>
           </nav>
         </aside>
 
         <main className="flex-1 p-3 pb-8 sm:p-4 md:p-8 lg:p-10">
           <div className="mx-auto max-w-5xl space-y-4 md:space-y-6">
-            <section className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:p-7">
+            <section className="rounded-[28px] border border-slate-700/40 bg-slate-900/45 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.38)] backdrop-blur-xl md:p-7">
               <div className="mb-5">
-                <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
-                  Lecture Translator
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50 md:text-base">
-                  Upload a photo, screenshot, or PDF — or paste text.
-                </p>
+                <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">{t.heading}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">{t.subHeading}</p>
               </div>
 
-              <div className="rounded-[24px] border border-white/8 bg-black/20 p-3 sm:p-4">
+              <div className="rounded-[24px] border border-slate-700/45 bg-[#050a15]/70 p-3 sm:p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
-                    <h3 className="text-sm font-medium text-white md:text-base">
-                      Input
-                    </h3>
-                    <p className="text-xs text-white/35 md:text-sm">
-                      Camera, file, or text
-                    </p>
+                    <h3 className="text-sm font-medium text-slate-100 md:text-base">{t.inputTitle}</h3>
+                    <p className="text-xs text-slate-500 md:text-sm">{t.inputHint}</p>
                   </div>
 
-                  <div className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-[11px] text-white/55">
-                    {isProcessing ? "Processing" : "Ready"}
+                  <div className="rounded-full border border-slate-600/50 bg-slate-800/70 px-3 py-1 text-[11px] text-slate-300">
+                    {isProcessing ? t.statusProcessing : t.statusReady}
                   </div>
                 </div>
 
@@ -360,17 +443,17 @@ export default function Dashboard() {
                   <button
                     type="button"
                     onClick={openCameraPicker}
-                    className="rounded-2xl border border-[#60a5fa]/20 bg-[#3b82f6]/10 px-4 py-3 text-sm font-medium text-white transition hover:bg-[#3b82f6]/16"
+                    className="rounded-2xl border border-slate-500/40 bg-slate-700/35 px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-slate-600/40"
                   >
-                    Take Photo
+                    {t.takePhoto}
                   </button>
 
                   <button
                     type="button"
                     onClick={openFilePicker}
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white/90 transition hover:bg-white/[0.07]"
+                    className="rounded-2xl border border-slate-600/50 bg-slate-800/65 px-4 py-3 text-sm font-medium text-slate-100 transition hover:bg-slate-700/70"
                   >
-                    Upload File
+                    {t.uploadFile}
                   </button>
                 </div>
 
@@ -392,25 +475,23 @@ export default function Dashboard() {
                 />
 
                 {selectedFileName && (
-                  <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
+                  <div className="mb-4 flex items-center justify-between rounded-2xl border border-slate-700/50 bg-slate-800/55 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">
-                        {selectedFileName}
-                      </p>
-                      <p className="mt-1 text-xs text-white/40 capitalize">
-                        {selectedFileType === "image" && "Image"}
-                        {selectedFileType === "pdf" && "PDF"}
-                        {selectedFileType === "word" && "Word"}
-                        {selectedFileType === "powerpoint" && "PowerPoint"}
+                      <p className="truncate text-sm font-medium text-slate-100">{selectedFileName}</p>
+                      <p className="mt-1 text-xs text-slate-400 capitalize">
+                        {selectedFileType === "image" && t.fileTypeImage}
+                        {selectedFileType === "pdf" && t.fileTypePdf}
+                        {selectedFileType === "word" && t.fileTypeWord}
+                        {selectedFileType === "powerpoint" && t.fileTypePowerpoint}
                       </p>
                     </div>
 
                     <button
                       type="button"
                       onClick={clearSelectedFile}
-                      className="ml-3 shrink-0 rounded-xl border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/65 transition hover:bg-white/[0.07] hover:text-white"
+                      className="ml-3 shrink-0 rounded-xl border border-slate-600/60 bg-slate-700/55 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-slate-600/70 hover:text-slate-100"
                     >
-                      Clear
+                      {t.clear}
                     </button>
                   </div>
                 )}
@@ -423,29 +504,23 @@ export default function Dashboard() {
                     setSelectedFileType("");
                     setInput(e.target.value);
                   }}
-                  placeholder="Paste lecture text here..."
-                  className="h-40 w-full resize-none rounded-[24px] border border-white/8 bg-[#09101f]/80 px-4 py-4 text-sm text-white placeholder:text-white/22 outline-none transition focus:border-[#60a5fa]/45 focus:bg-[#09101f] md:h-48"
+                  placeholder={t.placeholder}
+                  className="h-40 w-full resize-none rounded-[24px] border border-slate-700/55 bg-slate-950/75 px-4 py-4 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-slate-500/75 focus:bg-slate-950 md:h-48"
                 />
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {[
-                    "Phone photos",
-                    "Screenshots",
-                    "PDFs",
-                    "Word Docs",
-                    "PowerPoints",
-                  ].map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/55"
-                      >
-                        {item}
-                      </span>
+                  {t.chips.map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-slate-700/60 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300"
+                    >
+                      {item}
+                    </span>
                   ))}
                 </div>
 
                 {error && (
-                  <div className="mt-4 rounded-2xl border border-red-400/15 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
                     {error}
                   </div>
                 )}
@@ -453,98 +528,71 @@ export default function Dashboard() {
             </section>
 
             <section className="grid gap-4 md:grid-cols-2 md:gap-6">
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-slate-700/45 bg-slate-900/50 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold md:text-lg">
-                      Simple English
-                    </h3>
-                    <p className="text-xs text-white/40 md:text-sm">
-                      Easier wording
-                    </p>
+                    <h3 className="text-base font-semibold md:text-lg">{t.simpleTitle}</h3>
+                    <p className="text-xs text-slate-500 md:text-sm">{t.simpleHint}</p>
                   </div>
-                  {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
-                  )}
+                  {isProcessing && <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300" />}
                 </div>
 
                 {isProcessing ? (
                   <LoadingLines />
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm leading-7 text-white/75">
-                    {result.simple ||
-                      "Your simplified explanation will appear here."}
-                  </p>
+                  <p className="whitespace-pre-wrap text-sm leading-7 text-slate-300">{result.simple || t.simpleEmpty}</p>
                 )}
               </div>
 
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-slate-700/45 bg-slate-900/50 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold md:text-lg">
-                      Arabic Explanation
-                    </h3>
-                    <p className="text-xs text-white/40 md:text-sm">
-                      شرح مبسط
-                    </p>
+                    <h3 className="text-base font-semibold md:text-lg">{t.explanationTitle}</h3>
+                    <p className="text-xs text-slate-500 md:text-sm">{t.explanationHint}</p>
                   </div>
-                  {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
-                  )}
+                  {isProcessing && <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300" />}
                 </div>
 
                 {isProcessing ? (
                   <LoadingLines arabic />
                 ) : (
                   <p
-                    dir="ltr"
-                    className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
+                    dir="rtl"
+                    className={`${arabicUiFont.className} whitespace-pre-wrap text-right text-base leading-8 text-slate-200 md:text-lg`}
                   >
-                    {result.arabicExplanation || "سيظهر الشرح هنا."}
+                    {result.arabicExplanation || t.explanationEmpty}
                   </p>
                 )}
               </div>
 
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-slate-700/45 bg-slate-900/50 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold md:text-lg">
-                      Arabic Translation
-                    </h3>
-                    <p className="text-xs text-white/40 md:text-sm">
-                      Direct translation
-                    </p>
+                    <h3 className="text-base font-semibold md:text-lg">{t.translationTitle}</h3>
+                    <p className="text-xs text-slate-500 md:text-sm">{t.translationHint}</p>
                   </div>
-                  {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
-                  )}
+                  {isProcessing && <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300" />}
                 </div>
 
                 {isProcessing ? (
                   <LoadingLines arabic />
                 ) : (
                   <p
-                    dir="ltr"
-                    className="whitespace-pre-wrap text-left text-sm leading-7 text-white/75"
+                    dir="rtl"
+                    className={`${arabicUiFont.className} whitespace-pre-wrap text-right text-base leading-8 text-slate-200 md:text-lg`}
                   >
-                    {result.arabicTranslation || "ستظهر الترجمة هنا."}
+                    {result.arabicTranslation || t.translationEmpty}
                   </p>
                 )}
               </div>
 
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.045] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] backdrop-blur-2xl md:p-6">
+              <div className="rounded-[28px] border border-slate-700/45 bg-slate-900/50 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.34)] backdrop-blur-xl md:p-6">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold md:text-lg">
-                      Keywords
-                    </h3>
-                    <p className="text-xs text-white/40 md:text-sm">
-                      Key terms
-                    </p>
+                    <h3 className="text-base font-semibold md:text-lg">{t.keywordsTitle}</h3>
+                    <p className="text-xs text-slate-500 md:text-sm">{t.keywordsHint}</p>
                   </div>
-                  {isProcessing && (
-                    <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#60a5fa]" />
-                  )}
+                  {isProcessing && <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300" />}
                 </div>
 
                 {isProcessing ? (
@@ -558,24 +606,22 @@ export default function Dashboard() {
                     {result.keywords.map((keyword, index) => (
                       <span
                         key={`${keyword.en}-${index}`}
-                        className="rounded-full border border-[#60a5fa]/20 bg-[#3b82f6]/10 px-3 py-1.5 text-xs text-[#d8ebff]"
+                        className="rounded-full border border-slate-500/45 bg-slate-700/45 px-3 py-1.5 text-xs text-slate-100"
                       >
                         {keyword.en} — {keyword.ar}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs text-white/55">
-                    Keywords will appear here
+                  <span className="rounded-full border border-slate-700/55 bg-slate-800/55 px-3 py-1.5 text-xs text-slate-300">
+                    {t.keywordsEmpty}
                   </span>
                 )}
               </div>
             </section>
 
             {!isProcessing && !hasResult && !error && (
-              <div className="px-1 text-center text-sm text-white/35">
-                Upload something or paste text to begin.
-              </div>
+              <div className="px-1 text-center text-sm text-slate-500">{t.startHint}</div>
             )}
           </div>
         </main>
