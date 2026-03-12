@@ -117,7 +117,23 @@ function hasActiveSubscription(req: Request) {
   }
 
   const cookieHeader = req.headers.get("cookie") || "";
-  return /(?:^|;\s*)translator_subscribed=true(?:;|$)/.test(cookieHeader);
+  const legacyFlag = /(?:^|;\s*)translator_subscribed=true(?:;|$)/.test(cookieHeader);
+  if (legacyFlag) {
+    return true;
+  }
+
+  const subscriptionEndMatch = cookieHeader.match(
+    /(?:^|;\s*)translator_subscription_ends_at=([^;]+)(?:;|$)/
+  );
+
+  if (!subscriptionEndMatch?.[1]) {
+    return false;
+  }
+
+  const decodedEnd = decodeURIComponent(subscriptionEndMatch[1]);
+  const endsAt = new Date(decodedEnd);
+
+  return !Number.isNaN(endsAt.getTime()) && endsAt.getTime() > Date.now();
 }
 
 function getCurrentDayKey() {
@@ -152,6 +168,7 @@ function enforceFreeTier(req: Request) {
         subscriptionPriceUsd: SUBSCRIPTION_PRICE_USD,
         subscriptionTermMonths: SUBSCRIPTION_TERM_MONTHS,
         checkoutUrl: PADDLE_CHECKOUT_URL || null,
+        requiresAccount: true,
       }
     );
   }

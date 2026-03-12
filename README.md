@@ -51,3 +51,22 @@ API_RATE_LIMIT_MAX_REQUESTS=10
 API_RATE_LIMIT_WINDOW_MS=60000
 ```
 
+
+## Subscription and billing setup
+
+Free tier + subscription controls for `/api/explain`:
+
+- `DAILY_FREE_TRANSLATIONS` (default: `5`)
+- `PADDLE_CHECKOUT_URL` (link shown when subscription is required)
+
+Account and subscription cookies used by the app:
+
+- `translator_account_email` (set through `/api/account/session`)
+- `translator_subscription_ends_at` (ISO datetime used to determine active subscription)
+
+### Notes
+
+- The `/account` page lets users create/sign in with email (cookie-based starter flow).
+- The `/pricing` page shows plan details and links to Paddle checkout.
+- The `/refund-policy` page contains a template policy; update it for your legal needs.
+- In production, update subscription state from Paddle webhooks and persist account/subscription data in a database.
