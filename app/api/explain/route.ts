@@ -13,6 +13,14 @@ const RATE_LIMIT_WINDOW_MS = Number.parseInt(
   process.env.API_RATE_LIMIT_WINDOW_MS || "60000",
   10
 );
+const DAILY_FREE_TRANSLATIONS = Number.parseInt(
+  process.env.DAILY_FREE_TRANSLATIONS || "5",
+  10
+);
+const PADDLE_CHECKOUT_URL = process.env.PADDLE_CHECKOUT_URL || "";
+
+const SUBSCRIPTION_PRICE_USD = 14;
+const SUBSCRIPTION_TERM_MONTHS = 4;
 
 type RateLimitEntry = {
   count: number;
@@ -31,12 +39,29 @@ const rateLimitStore =
 
 class ApiError extends Error {
   status: number;
+  details?: Record<string, unknown>;
 
-  constructor(message: string, status = 500) {
+  constructor(message: string, status = 500, details?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.details = details;
   }
 }
+
+type DailyUsageEntry = {
+  count: number;
+  dayKey: string;
+};
+
+type GlobalWithFreeTierStore = typeof globalThis & {
+  explainRouteDailyUsageStore?: Map<string, DailyUsageEntry>;
+};
+
+const dailyUsageStore =
+  (globalThis as GlobalWithFreeTierStore).explainRouteDailyUsageStore ||
+  new Map<string, DailyUsageEntry>();
+
+(globalThis as GlobalWithFreeTierStore).explainRouteDailyUsageStore = dailyUsageStore;
 
 type GeminiPart = {
   text: string;
@@ -83,6 +108,55 @@ function getRequestClientId(req: Request) {
   }
 
   return "unknown-client";
+}
+
+function hasActiveSubscription(req: Request) {
+  const subscriptionHeader = req.headers.get("x-subscription-active");
+  if (subscriptionHeader && subscriptionHeader.toLowerCase() === "true") {
+    return true;
+  }
+
+  const cookieHeader = req.headers.get("cookie") || "";
+  return /(?:^|;\s*)translator_subscribed=true(?:;|$)/.test(cookieHeader);
+}
+
+function getCurrentDayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function enforceFreeTier(req: Request) {
+  if (hasActiveSubscription(req)) {
+    return;
+  }
+
+  if (Number.isNaN(DAILY_FREE_TRANSLATIONS) || DAILY_FREE_TRANSLATIONS <= 0) {
+    throw new ApiError("Free tier configuration is invalid.", 500);
+  }
+
+  const clientId = getRequestClientId(req);
+  const dayKey = getCurrentDayKey();
+  const usage = dailyUsageStore.get(clientId);
+
+  if (!usage || usage.dayKey !== dayKey) {
+    dailyUsageStore.set(clientId, { count: 1, dayKey });
+    return;
+  }
+
+  if (usage.count >= DAILY_FREE_TRANSLATIONS) {
+    throw new ApiError(
+      `You've used all ${DAILY_FREE_TRANSLATIONS} free translations for today. Subscribe for $${SUBSCRIPTION_PRICE_USD} every ${SUBSCRIPTION_TERM_MONTHS} months to continue.`,
+      402,
+      {
+        code: "SUBSCRIPTION_REQUIRED",
+        dailyFreeTranslations: DAILY_FREE_TRANSLATIONS,
+        subscriptionPriceUsd: SUBSCRIPTION_PRICE_USD,
+        subscriptionTermMonths: SUBSCRIPTION_TERM_MONTHS,
+        checkoutUrl: PADDLE_CHECKOUT_URL || null,
+      }
+    );
+  }
+
+  usage.count += 1;
 }
 
 function enforceRateLimit(req: Request) {
@@ -392,12 +466,17 @@ function isPowerPoint(file: File) {
 
 export async function POST(req: Request) {
   try {
-    enforceRateLimit(req);
-
     const formData = await req.formData();
 
     const text = formData.get("text");
     const file = formData.get("file");
+
+    if (!(typeof text === "string" && text.trim()) && !(file instanceof File)) {
+      throw new ApiError("No text or file provided.", 400);
+    }
+
+    enforceRateLimit(req);
+    enforceFreeTier(req);
 
     if (typeof text === "string" && text.trim()) {
       const result = await analyzeText(text);
@@ -445,7 +524,10 @@ export async function POST(req: Request) {
     console.error(error);
 
     if (error instanceof ApiError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return NextResponse.json(
+        { error: error.message, ...(error.details || {}) },
+        { status: error.status }
+      );
     }
 
     return NextResponse.json(

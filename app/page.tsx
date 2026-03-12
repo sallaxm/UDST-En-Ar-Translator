@@ -62,6 +62,8 @@ const uiText = {
     fileTypePdf: "PDF",
     fileTypeWord: "Word",
     fileTypePowerpoint: "PowerPoint",
+    freeTierNotice: "5 free translations/day. Then $14 every 4 months via Paddle.",
+    subscribeNow: "Subscribe now",
   },
   ar: {
     appName: "المترجم",
@@ -97,17 +99,30 @@ const uiText = {
     fileTypePdf: "PDF",
     fileTypeWord: "Word",
     fileTypePowerpoint: "PowerPoint",
+    freeTierNotice: "5 ترجمات مجانية يومياً. بعد ذلك 14 دولار لكل 4 أشهر عبر Paddle.",
+    subscribeNow: "اشترك الآن",
   },
 } as const;
+
+type ApiErrorPayload = {
+  error?: string;
+  code?: string;
+  checkoutUrl?: string | null;
+};
 
 async function parseApiResponse<T>(res: Response): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
 
   if (contentType.includes("application/json")) {
-    const data = (await res.json()) as T & { error?: string };
+    const data = (await res.json()) as T & ApiErrorPayload;
 
     if (!res.ok) {
-      throw new Error(data.error || "Request failed.");
+      const baseMessage = data.error || "Request failed.";
+      const fullMessage =
+        data.code === "SUBSCRIPTION_REQUIRED" && data.checkoutUrl
+          ? `${baseMessage} Subscribe: ${data.checkoutUrl}`
+          : baseMessage;
+      throw new Error(fullMessage);
     }
 
     return data;
@@ -425,6 +440,7 @@ export default function Dashboard() {
               <div className="mb-5">
                 <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">{t.heading}</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">{t.subHeading}</p>
+                <p className="mt-2 text-xs text-slate-400 md:text-sm">{t.freeTierNotice}</p>
               </div>
 
               <div className="rounded-[24px] border border-slate-700/45 bg-[#050a15]/70 p-3 sm:p-4">
@@ -520,8 +536,18 @@ export default function Dashboard() {
                 </div>
 
                 {error && (
-                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                    {error}
+                  <div className="mt-4 space-y-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                    <p>{error}</p>
+                    {error.includes("Subscribe: ") && (
+                      <a
+                        href={error.split("Subscribe: ")[1]?.trim()}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-xl border border-red-300/40 bg-red-300/15 px-3 py-1.5 text-xs font-medium text-red-100 hover:bg-red-300/25"
+                      >
+                        {t.subscribeNow}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
