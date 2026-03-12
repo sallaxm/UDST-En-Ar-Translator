@@ -1,0 +1,10 @@
+{
+  "name": "@vercel/analytics",
+  "version": "1.0.0-local",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": "./index.js",
+    "./next": "./next.mjs"
+  }
+}

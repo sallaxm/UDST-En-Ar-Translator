@@ -14,7 +14,8 @@
     "openai": "^6.27.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "pdf-lib": "file:vendor/pdf-lib"
+    "pdf-lib": "file:vendor/pdf-lib",
+    "@vercel/analytics": "file:vendor/vercel-analytics"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
