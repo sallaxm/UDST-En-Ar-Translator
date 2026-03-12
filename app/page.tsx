@@ -33,6 +33,8 @@ const uiText = {
     support: "English to Arabic support",
     translatorNav: "Translator",
     aboutNav: "About",
+    pricingNav: "Pricing",
+    accountNav: "Account",
     languageToggle: "العربية",
     heading: "Lecture Translator",
     subHeading: "Upload a photo, screenshot, or PDF — or paste text.",
@@ -62,12 +64,16 @@ const uiText = {
     fileTypePdf: "PDF",
     fileTypeWord: "Word",
     fileTypePowerpoint: "PowerPoint",
+    freeTierNotice: "5 free translations/day. Then $14 every 4 months via Paddle.",
+    subscribeNow: "Subscribe now",
   },
   ar: {
     appName: "المترجم",
     support: "دعم من الإنجليزية إلى العربية",
     translatorNav: "المترجم",
     aboutNav: "عن الموقع",
+    pricingNav: "الأسعار",
+    accountNav: "الحساب",
     languageToggle: "English",
     heading: "مترجم المحاضرات",
     subHeading: "ارفع صورة أو لقطة شاشة أو ملف PDF — أو الصق النص مباشرة.",
@@ -97,17 +103,35 @@ const uiText = {
     fileTypePdf: "PDF",
     fileTypeWord: "Word",
     fileTypePowerpoint: "PowerPoint",
+    freeTierNotice: "5 ترجمات مجانية يومياً. بعد ذلك 14 دولار لكل 4 أشهر عبر Paddle.",
+    subscribeNow: "اشترك الآن",
   },
 } as const;
+
+type ApiErrorPayload = {
+  error?: string;
+  code?: string;
+  checkoutUrl?: string | null;
+};
+
+class ApiRequestError extends Error {
+  checkoutUrl?: string;
+
+  constructor(message: string, checkoutUrl?: string) {
+    super(message);
+    this.checkoutUrl = checkoutUrl;
+  }
+}
 
 async function parseApiResponse<T>(res: Response): Promise<T> {
   const contentType = res.headers.get("content-type") || "";
 
   if (contentType.includes("application/json")) {
-    const data = (await res.json()) as T & { error?: string };
+    const data = (await res.json()) as T & ApiErrorPayload;
 
     if (!res.ok) {
-      throw new Error(data.error || "Request failed.");
+      const baseMessage = data.error || "Request failed.";
+      throw new ApiRequestError(baseMessage, data.code === "SUBSCRIPTION_REQUIRED" ? data.checkoutUrl || undefined : undefined);
     }
 
     return data;
@@ -238,6 +262,7 @@ export default function Dashboard() {
   >("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
+  const [subscriptionCheckoutUrl, setSubscriptionCheckoutUrl] = useState("");
   const [result, setResult] = useState<ResultData>(emptyResult);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -251,6 +276,7 @@ export default function Dashboard() {
 
     setIsProcessing(true);
     setError("");
+    setSubscriptionCheckoutUrl("");
 
     try {
       const formData = new FormData();
@@ -267,7 +293,12 @@ export default function Dashboard() {
         keywords: Array.isArray(data.keywords) ? data.keywords : [],
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process text.");
+      if (err instanceof ApiRequestError) {
+        setError(err.message);
+        setSubscriptionCheckoutUrl(err.checkoutUrl || "");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to process text.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -276,6 +307,7 @@ export default function Dashboard() {
   const processFile = async (file: File) => {
     setIsProcessing(true);
     setError("");
+    setSubscriptionCheckoutUrl("");
 
     try {
       const formData = new FormData();
@@ -292,7 +324,12 @@ export default function Dashboard() {
         keywords: Array.isArray(data.keywords) ? data.keywords : [],
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process file.");
+      if (err instanceof ApiRequestError) {
+        setError(err.message);
+        setSubscriptionCheckoutUrl(err.checkoutUrl || "");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to process file.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -316,6 +353,7 @@ export default function Dashboard() {
     setSelectedFileName(uploadFile.name);
     setInput("");
     setError("");
+    setSubscriptionCheckoutUrl("");
     setResult(emptyResult);
 
     const lowerName = uploadFile.name.toLowerCase();
@@ -351,6 +389,7 @@ export default function Dashboard() {
     setSelectedFileName("");
     setSelectedFileType("");
     setError("");
+    setSubscriptionCheckoutUrl("");
     setResult(emptyResult);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -409,6 +448,18 @@ export default function Dashboard() {
             >
               {t.aboutNav}
             </a>
+            <a
+              href="/pricing"
+              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-100"
+            >
+              {t.pricingNav}
+            </a>
+            <a
+              href="/account"
+              className="shrink-0 rounded-2xl px-4 py-2.5 text-left text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-100"
+            >
+              {t.accountNav}
+            </a>
             <button
               type="button"
               onClick={() => setLanguage((prev) => (prev === "en" ? "ar" : "en"))}
@@ -425,6 +476,7 @@ export default function Dashboard() {
               <div className="mb-5">
                 <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">{t.heading}</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 md:text-base">{t.subHeading}</p>
+                <p className="mt-2 text-xs text-slate-400 md:text-sm">{t.freeTierNotice}</p>
               </div>
 
               <div className="rounded-[24px] border border-slate-700/45 bg-[#050a15]/70 p-3 sm:p-4">
@@ -503,6 +555,7 @@ export default function Dashboard() {
                     setSelectedFileName("");
                     setSelectedFileType("");
                     setInput(e.target.value);
+                    setSubscriptionCheckoutUrl("");
                   }}
                   placeholder={t.placeholder}
                   className="h-40 w-full resize-none rounded-[24px] border border-slate-700/55 bg-slate-950/75 px-4 py-4 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-slate-500/75 focus:bg-slate-950 md:h-48"
@@ -520,8 +573,18 @@ export default function Dashboard() {
                 </div>
 
                 {error && (
-                  <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-                    {error}
+                  <div className="mt-4 space-y-3 rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-200">
+                    <p>{error}</p>
+                    {subscriptionCheckoutUrl && (
+                      <a
+                        href={subscriptionCheckoutUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex rounded-xl border border-red-300/40 bg-red-300/15 px-3 py-1.5 text-xs font-medium text-red-100 hover:bg-red-300/25"
+                      >
+                        {t.subscribeNow}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>
